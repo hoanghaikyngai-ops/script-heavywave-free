@@ -24425,22 +24425,9 @@ do
 end
 
 Window:SelectTab(Tabs.Main)
--- MusicPlayer.lua
--- Module UI phát nhạc độc lập.
--- Yêu cầu object tab truyền vào có các method: CreateSection, CreateToggle,
--- CreateSlider, CreateInput, CreateButton với convention tham số:
---   Name, CurrentValue, Range = {min, max}, Increment, Placeholder, Finished, Callback.
--- Danh sách bài hát là bảng { Name = string, Id = string(numeric asset id) }.
+-- ==== MUSIC TAB: chép toàn bộ khối này thay cho khối music cũ ====
 local MusicTab = Window:Tab({ Title = "Music", Icon = "headphones" })
--- MusicPlayer.lua
--- Module UI phát nhạc độc lập.
--- Yêu cầu object tab truyền vào có các method: CreateSection, CreateToggle,
--- CreateSlider, CreateInput, CreateButton với convention tham số:
---   Name, CurrentValue, Range = {min, max}, Increment, Placeholder, Finished, Callback.
--- Danh sách bài hát là bảng { Name = string, Id = string(numeric asset id) },
--- kèm From / To (tính bằng giây, tùy chọn) nếu chỉ muốn phát một đoạn của bài đó.
 
-local SoundService = game:GetService("SoundService")
 local SoundService = game:GetService("SoundService")
 
 local MusicPlayer = {}
@@ -24455,8 +24442,9 @@ MusicPlayer.Playlist = {
     { Name = "Cùng Anh Remix", Id = "71716020610625" },
     { Name = "Khuê Mộc Lan", Id = "98361989582185" },
     { Name = "TRẢ CHO ANH GOJO VS SUKUNA", Id = "110396752508363", From = 163, To = 180 },
-    { Name = "Ai đưa em về" , Id = "110919391228823" },
+    { Name = "Ai đưa em về", Id = "110919391228823" },
 }
+
 function MusicPlayer.Setup(options)
     options = options or {}
     local tab = options.Tab
@@ -24476,6 +24464,7 @@ function MusicPlayer.Setup(options)
         Sound = sound,
         CurrentId = nil,
     }
+
     local function playId(id, label, from, to)
         local numeric = tostring(id):match("%d+")
         if not numeric then
@@ -24527,6 +24516,35 @@ function MusicPlayer.Setup(options)
         Callback = function(on)
             if on then
                 if state.CurrentId then
+                    pcall(function()
+                        sound:Resume()
+                    end)
+                else
+                    playId(defaultId, "Bài mặc định")
+                end
+            else
+                pcall(function()
+                    sound:Pause()
+                end)
+            end
+        end,
+    })
+
+    tab:CreateSlider({
+        Name = "Âm lượng",
+        CurrentValue = 1,
+        Range = { 0, 10 },
+        Increment = 0.1,
+        Callback = function(value)
+            sound.Volume = value
+        end,
+    })
+
+    tab:CreateInput({
+        Name = "Audio ID tùy chỉnh",
+        CurrentValue = "",
+        Numeric = true,
+        Finished = true,
         Placeholder = "Dán ID vào đây...",
         Callback = function(text)
             playId(text)
@@ -24547,6 +24565,7 @@ function MusicPlayer.Setup(options)
 
     return state
 end
+
 local ok, err = pcall(function()
     MusicPlayer.Setup({
         Tab = MusicTab,
@@ -24558,15 +24577,4 @@ end)
 if not ok then
     warn("MusicPlayer loi: " .. tostring(err))
 end
-
--- Cách dùng trong script của bạn:
---
--- local MusicPlayer = require(path-to-MusicPlayer)
--- local musicTab = window:Tab({ Title = "Music", Icon = "headphones" })
--- MusicPlayer.Setup({
---     Tab = musicTab,
---     Notify = function(title, content, duration)
---         yourNotify({ Title = title, Content = content, Duration = duration })
---     end,
---     Playlist = { { Name = "Bài của tôi", Id = "123456789" } },  -- tùy chọn
--- })
+-- ==== hết khối MUSIC TAB ====

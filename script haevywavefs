@@ -24439,7 +24439,34 @@ local MusicPlayer = {}
 MusicPlayer.DefaultTrackId = "1845922899"
 
 MusicPlayer.Playlist = {
-
+    { Name = "1. Quốc ca Việt Nam", Id = "1845922899" },
+    { Name = "2. See Tình", Id = "121242950842428" },
+    { Name = "3. Ai đưa em về", Id = "110919391228823" },
+    { Name = "4. Cứ Thế Mong Chờ (Remix)", Id = "73423580532746" },
+    { Name = "5. GIGA CHAT Phonk", Id = "15689448519" },
+    { Name = "6. PONTAHAHA Phonk", Id = "92090093126859" },
+    { Name = "7. Hối Hận Trong Anh (Remix)", Id = "1848354536" },
+    { Name = "8. Phía Sau 1 Cô Gái (Remix)", Id = "1848354537" },
+    { Name = "9. TRẢ CHO ANH GOJO VS SUKUNA", Id = "123832134472927" },
+    { Name = "10. Khuất Lối (Remix)", Id = "134011633407167" },
+    { Name = "11. 2 Phút Hơn (KAIZ Remix)", Id = "6023423715" }, -- Giữ lại bản hit quốc tế này vì ID gốc vẫn chạy rất tốt
+    { Name = "12. Bao Tiền Một Mớ Mớ Ba Mớ Bảy", Id = "120102995443063" },
+    { Name = "13. Anh Nhà Ở Đâu Thế", Id = "78534559289195" },
+    { Name = "14. Như Anh Đã Thấy Em (Lofi)", Id = "134467328946090" },
+    { Name = "15. Thích Em Hơi Nhiều", Id = "108623775420449" },
+    { Name = "16. 2AM - JustaTee ft BigDaddy", Id = "1843404009" },
+    { Name = "17. Ngày Đầu Tiên - Đức Phúc", Id = "1846458016" },
+    { Name = "18. Cắt Đôi Nỗi Sầu", Id = "1846575559" },
+    { Name = "19. Gieo Quẻ - Hoàng Thùy Linh", Id = "1836105293" },
+    { Name = "20. Lệ Lưu Ly", Id = "1838674668" },
+    { Name = "21. Vũ Điệu Hoang Dã", Id = "1840287757" },
+    { Name = "22. Tình Sầu Thiên Thu Muôn Lối", Id = "9047105533" },
+    { Name = "23. Từng Quen - Wixx Remix", Id = "1845554017" },
+    { Name = "24. Yêu Là Cưới", Id = "1840383905" },
+    { Name = "25. Có Chàng Trai Viết Lên Cây", Id = "9039661312" },
+    { Name = "26. Waiting For You - MONO", Id = "1837258874" },
+    { Name = "27. VinaHouse Cực Bốc 2026", Id = "14145625743" },
+    { Name = "28. Nhạc Chill TikTok 2026", Id = "1836798379" }
 }
 
 function MusicPlayer.Setup(options)

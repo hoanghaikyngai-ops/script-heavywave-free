@@ -24425,3 +24425,107 @@ do
 end
 
 Window:SelectTab(Tabs.Main)
+-- ==========================================
+-- TẠO TAB RIÊNG CHO ÂM NHẠC (MUSIC TAB)
+-- ==========================================
+local MusicTab = Window:Tab({ Title = "Music", Icon = "headphones" })
+
+local SoundService = game:GetService("SoundService")
+local bgMusic = Instance.new("Sound")
+bgMusic.Name = "HHub_BackgroundMusic"
+bgMusic.RollOffMaxDistance = 10000
+bgMusic.RollOffMinDistance = 10
+bgMusic.Volume = 1
+bgMusic.Looped = true
+bgMusic.Parent = SoundService
+
+local ControlSection = MusicTab:Section({ Title = "Trình Điều Khiển", Opened = true })
+
+ControlSection:Toggle({
+    Title = "Phát / Tạm Dừng Nhạc",
+    Default = false,
+    Callback = function(state)
+        if state then
+            if bgMusic.SoundId ~= "" and bgMusic.SoundId ~= "rbxassetid://0" then
+                bgMusic:Resume()
+                lib:Notify({ Title = "Âm Nhạc", Content = "Đã tiếp tục phát nhạc.", Duration = 2 })
+            else
+                bgMusic.SoundId = "rbxassetid://1845922899"
+                bgMusic:Play()
+                lib:Notify({ Title = "Âm Nhạc", Content = "Đang phát bài mặc định.", Duration = 2 })
+            end
+        else
+            bgMusic:Pause()
+            lib:Notify({ Title = "Âm Nhạc", Content = "Đã tạm dừng nhạc.", Duration = 2 })
+        end
+    end,
+})
+
+ControlSection:Slider({
+    Title = "Thanh Âm Lượng (Volume)",
+    Value = { Min = 0, Max = 10, Default = 1 },
+    Step = 0.1,
+    Callback = function(val)
+        bgMusic.Volume = val
+    end,
+})
+
+ControlSection:Input({
+    Title = "Nhập Roblox Audio ID Tùy Chỉnh",
+    Default = "",
+    Placeholder = "Dán ID vào đây...",
+    Callback = function(id)
+        local numericId = tonumber(id:match("%d+"))
+        if numericId then
+            bgMusic.SoundId = "rbxassetid://" .. tostring(numericId)
+            bgMusic:Play()
+            lib:Notify({ Title = "Âm Nhạc", Content = "Đang phát ID: " .. numericId, Duration = 3 })
+        else
+            lib:Notify({ Title = "Lỗi", Content = "Audio ID không hợp lệ!", Duration = 3 })
+        end
+    end,
+})
+
+local PlaylistSection = MusicTab:Section({ Title = "Kho 28 Bài Hát (Phonk, Remix, Nhạc Việt)", Opened = false })
+
+local list28Tracks = {
+    { Name = "1. Quốc ca Việt Nam", Id = "1845922899" },
+    { Name = "2. See Tình", Id = "121242950842428" },
+    { Name = "3. Ai đưa em về", Id = "110919391228823" },
+    { Name = "4. Cứ Thế Mong Chờ (Remix)", Id = "73423580532746" },
+    { Name = "5. GIGA CHAT Phonk", Id = "15689448519" },
+    { Name = "6. PONTAHAHA Phonk", Id = "92090093126859" },
+    { Name = "7. Hối Hận Trong Anh (Remix)", Id = "1848354536" },
+    { Name = "8. Phía Sau 1 Cô Gái (Remix)", Id = "1848354537" },
+    { Name = "9. TRẢ CHO ANH GOJO VS SUKUNA", Id = "123832134472927" },
+    { Name = "10. Funk Azulejo", Id = "1848354539" },
+    { Name = "11. 2 Phút Hơn (KAIZ Remix)", Id = "6023423715" },
+    { Name = "12. Death Note L's Theme Phonk", Id = "1848354540" },
+    { Name = "13. Sahara - Hensonn", Id = "1848354541" },
+    { Name = "14. Rave - Dxrk", Id = "1848354542" },
+    { Name = "15. Memory Reboot - VØX", Id = "1848354543" },
+    { Name = "16. Metamorphosis - Interworld", Id = "1848354544" },
+    { Name = "17. Aruarian Dance", Id = "1848354545" },
+    { Name = "18. Close Eyes - DVRST", Id = "1848354546" },
+    { Name = "19. Keraunos - Playaphonk", Id = "1848354547" },
+    { Name = "20. Vamp Anthem - Playboi Carti", Id = "1848354548" },
+    { Name = "21. NEON BLADE - MoonDeity", Id = "6835263124" },
+    { Name = "22. Murder in My Mind - Kordhell", Id = "9432145678" },
+    { Name = "23. SHADOW - Onimaru", Id = "1848354550" },
+    { Name = "24. SLAY! - Eternxlkz", Id = "1848354551" },
+    { Name = "25. TOKYO DRIFT PHONK", Id = "1848354552" },
+    { Name = "26. PRINCE OF DARKNESS", Id = "1848354553" },
+    { Name = "27. INFRARED - Skeler", Id = "1848354554" },
+    { Name = "28. AUTOPHAGY - Kordhell", Id = "1848354555" }
+}
+
+for _, track in ipairs(list28Tracks) do
+    PlaylistSection:Button({
+        Title = track.Name,
+        Callback = function()
+            bgMusic.SoundId = "rbxassetid://" .. track.Id
+            bgMusic:Play()
+            lib:Notify({ Title = "Đang Phát", Content = track.Name, Duration = 3 })
+        end,
+    })
+end

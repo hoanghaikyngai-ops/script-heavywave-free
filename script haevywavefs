@@ -24437,8 +24437,8 @@ MusicPlayer.DefaultTrackId = "1845922899"
 MusicPlayer.Playlist = {
     { Name = "Quốc ca Việt Nam", Id = "1845922899" },
     { Name = "See Tình", Id = "121242950842428" },
-    { Name = "2 Phút Hơn KAIZ Remix", Id = "78534559289195" },
-    { Name = "Trái đất yêu mặt trời & Nắng có mang em đi", Id = "140553267266985" },
+    { Name = "2 Phút Hơn KAIZ Remix", Id = "124166975687737" },
+    { Name = "Trái đất yêu mặt trời & Nắng có mang em đi", Id = "140553267266985", From = 29, To = 77 },
     { Name = "Cùng Anh Remix", Id = "71716020610625" },
     { Name = "Khuê Mộc Lan", Id = "98361989582185" },
     { Name = "TRẢ CHO ANH GOJO VS SUKUNA", Id = "110396752508363", From = 163, To = 180 },

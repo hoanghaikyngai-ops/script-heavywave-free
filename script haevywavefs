@@ -24431,7 +24431,14 @@ Window:SelectTab(Tabs.Main)
 -- CreateSlider, CreateInput, CreateButton với convention tham số:
 --   Name, CurrentValue, Range = {min, max}, Increment, Placeholder, Finished, Callback.
 -- Danh sách bài hát là bảng { Name = string, Id = string(numeric asset id) }.
+local MusicTab = Window:Tab({ Title = "Music", Icon = "headphones" })
 
+MusicPlayer.Setup({
+    Tab = MusicTab,
+    Notify = function(title, content, duration)
+        Library:Notify({ Title = title, Content = content, Duration = duration })
+    end,
+})
 local SoundService = game:GetService("SoundService")
 
 local MusicPlayer = {}
@@ -24567,8 +24574,6 @@ function MusicPlayer.Setup(options)
 
     return state
 end
-
-return MusicPlayer
 
 -- Cách dùng trong script của bạn:
 --

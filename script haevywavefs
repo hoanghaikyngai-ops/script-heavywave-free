@@ -24432,19 +24432,9 @@ Window:SelectTab(Tabs.Main)
 --   Name, CurrentValue, Range = {min, max}, Increment, Placeholder, Finished, Callback.
 -- Danh sách bài hát là bảng { Name = string, Id = string(numeric asset id) }.
 local MusicTab = Window:Tab({ Title = "Music", Icon = "headphones" })
-
-MusicPlayer.Setup({
-    Tab = MusicTab,
-    Notify = function(title, content, duration)
-        Library:Notify({ Title = title, Content = content, Duration = duration })
-    end,
-})
 local SoundService = game:GetService("SoundService")
-
 local MusicPlayer = {}
-
 MusicPlayer.DefaultTrackId = "1845922899"
-
 MusicPlayer.Playlist = {
     { Name = "1. Quốc ca Việt Nam", Id = "1845922899" },
     { Name = "2. See Tình", Id = "121242950842428" },
@@ -24573,6 +24563,17 @@ function MusicPlayer.Setup(options)
     end
 
     return state
+end
+local ok, err = pcall(function()
+    MusicPlayer.Setup({
+        Tab = MusicTab,
+        Notify = function(title, content, duration)
+            Library:Notify({ Title = title, Content = content, Duration = duration })
+        end,
+    })
+end)
+if not ok then
+    warn("MusicPlayer loi: " .. tostring(err))
 end
 
 -- Cách dùng trong script của bạn:

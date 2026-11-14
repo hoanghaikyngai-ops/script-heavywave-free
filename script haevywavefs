@@ -24424,6 +24424,1085 @@ do
     })
 end
 
+do
+local JL = {
+    Status = "Tắt",
+    Progress = "",
+    Learned = {},          -- [tên chuỗi] = danh sách thao tác hội thoại bạn tự làm (script học để lặp lại)
+    Caught = {},           -- cá đã câu trong phiên {name, weight}
+    BossKills = { any = 0, enzo = 0, diaohai = 0 },
+    BlockedSells = 0,
+    Protect = false,       -- true = CHẶN mọi lệnh SellFish
+    FarmOn = false,
+    AcceptTries = {},
+    LastAccept = 0,
+    LastTurnIn = 0,
+    LastBait = 0,
+    LastFish = nil,
+    Warned = {},
+}
+local UI = {}
+
+-- ---------------------------------------------------------------- tiện ích
+local function squash(s)
+    local r = tostring(s or ""):lower():gsub("%s+", "")
+    return r
+end
+
+local function norm(s)
+    local r = tostring(s or ""):lower()
+    r = r:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+    return r
+end
+
+local function cleanName(raw)
+    local part = string.split(tostring(raw or ""), "|")[1] or ""
+    return norm(part)
+end
+
+local function notify(title, content)
+    pcall(function()
+        Library:Notify({ Title = title, Content = content, Duration = 4 })
+    end)
+end
+
+local function warnOnce(key, title, content)
+    if JL.Warned[key] then return end
+    JL.Warned[key] = true
+    notify(title, content)
+end
+
+local function setFlag(flag, key, value)
+    if Config[key] == value then return end
+    local f = Library.Flags[flag]
+    if f and f.Set then
+        pcall(f.Set, f, value)
+    else
+        Config[key] = value
+        SaveConfig()
+    end
+end
+
+local function fmtW(w)
+    if w >= 1e6 then return string.format("%gM", w / 1e6) end
+    return tostring(w)
+end
+
+-- ======================================================================
+-- DỮ LIỆU CHUỖI NHIỆM VỤ (theo file danh sách bạn đưa)
+--   F(tên cá, số lượng, cân nặng tối thiểu, đảo, mồi, thời tiết, ngày/đêm)
+--   thời tiết: snow | wind | hot (nắng gắt) | thunder | rain
+--   t: "day" | "night"
+--   B(tên boss|nil, chế độ, số lần, secret?)
+--   manual = yêu cầu script KHÔNG tự làm được (chiêu, level NPC, tiền, PvP...)
+-- ======================================================================
+local function F(n, c, w, i, b, wx, t)
+    return { n = n and norm(n) or nil, raw = n or "Cá bất kỳ", c = c or 1, w = w, i = i, b = b, wx = wx, t = t }
+end
+local function B(k, mode, c, secret)
+    return { k = k, mode = mode or "Normal", c = c or 1, secret = secret == true }
+end
+
+local CHAINS = {
+    {
+        name = "Giang Lão (Thái Cực)",
+        keys = { "jianglao", "oldjiang" }, q = { "jiang", "taiji" },
+        home = { "Bamboo Isle", "Battlefield Isle" },
+        steps = {
+            { title = "5 Trueform + 1 Ascended Perch", rod = "ascendantbamboo",
+              manual = "Cần sở hữu Ascendant Bamboo Rod (mua trên ngọn cây Đảo 2)",
+              fish = { F("Trueform Jiaolongfish", 5, nil, "Sovereign Isle"), F("Ascended Perch", 1, nil, "Perch Isle") } },
+            { title = "5 Ascended Perch", manual = "Cần có chiêu Taijiquan Technique V2",
+              fish = { F("Ascended Perch", 5, nil, "Perch Isle") } },
+            { title = "10 cá ≥1M + Reborn Puffer 5M (Tuyết)", home = { "Battlefield Isle", "Bamboo Isle" },
+              fish = { F(nil, 10, 1e6, "Frost Isle"), F("Reborn Puffer Beast", 1, 5e6, "Frost Isle", nil, "snow") } },
+            { title = "Colossal Tigerfish 5M (Battlefield)", home = { "Battlefield Isle", "Bamboo Isle" },
+              manual = "Cần có chiêu Taijiquan Technique V3",
+              fish = { F("Colossal Tigerfish", 1, 5e6, "Battlefield Isle") } },
+            { title = "Hạ Long Diaohai (Nightmare)", home = { "Battlefield Isle", "Bamboo Isle" },
+              manual = "Cần có cả Ascended Taiji Art và Shadowless Taiji Strike",
+              boss = B("diaohai", "Nightmare", 1, true) },
+        },
+    },
+    {
+        name = "Ba Chang (Đảo Ngược Điếu Pháp)",
+        keys = { "bachang" }, q = { "bachang" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Dùng 4 chiêu mỗi chiêu 50 lần", manual = "Dùng Leopard Lock, Iron Grip Art, Dual Sonic Kick, Whirlwind Fishing Art mỗi chiêu 50 lần (bật Auto Skill, chọn đủ phím chiêu)" },
+            { title = "Wind Fish 2M (Gió) + dùng chiêu", manual = "Dùng Fishsea Heavenhook 50 lần + Upside Down Fishing 50 lần",
+              fish = { F("Wind Fish", 1, 2e6, "Weather Isle", nil, "wind") } },
+            { title = "Flame Fish 2M (Nắng gắt) + Ba Chang Lv5", manual = "Nâng Ba Chang lên Level 5",
+              fish = { F("Flame Fish", 1, 2e6, "Weather Isle", nil, "hot") } },
+            { title = "Thunder Bull Shark 40M + 10 Trueform",
+              fish = { F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait"), F("Trueform Jiaolongfish", 10, nil, "Sovereign Isle") } },
+        },
+    },
+    {
+        name = "Đoàn Càn (Thập Điếu Tiên Pháp)",
+        keys = { "duangan", "duan" }, q = { "duangan" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Sở hữu 3 chiêu", manual = "Pacifies the Clouds, Infinite Sky Ascension V3, One-Strike Heaven Gate V3" },
+            { title = "Mountain Dragonwhale 3M (Gió)", manual = "Cần chiêu Taijiquan V3 và River Suppression",
+              fish = { F("Mountain Dragonwhale", 1, 3e6, "Battlefield Isle", nil, "wind") } },
+            { title = "Golden Dragonfish 5M (Nắng gắt)", manual = "Cần chiêu Phoenix Annihilation Art + nâng Đoàn Càn Lv3",
+              fish = { F("Golden Dragonfish", 1, 5e6, "Amber Isle", nil, "hot") } },
+            { title = "Crimson Bonefiend 7M (ban đêm)", manual = "Cần chiêu Lone Swan Treads Snow + nâng Đoàn Càn Lv5",
+              fish = { F("Crimson Bonefiend", 1, 7e6, "World Angler Isle", nil, nil, "night") } },
+        },
+    },
+    {
+        name = "Sage Yijiu (Hiền Triết)",
+        keys = { "yijiu" }, q = { "yijiu" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "5 cá ≥1.5M", fish = { F(nil, 5, 1.5e6, "Perch Isle") } },
+            { title = "Scarlet + Elder Scarlet (Bão sấm, Bamboo)", manual = "Cần Phoenix Strike Art V2 + câu 250 lần",
+              fish = { F("Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder"), F("Elder Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder") } },
+            { title = "Draconic Koi 2M (Nắng gắt) + 10 cá ≥1M", manual = "Cần chiêu One-Strike Heaven Gate V3",
+              fish = { F("Draconic Koi", 1, 2e6, "Amber Isle", nil, "hot"), F(nil, 10, 1e6, "Amber Isle") } },
+            { title = "Rainbow Dragonfish 6.5M (Rainbow Bait)", manual = "Dùng Fivefold Seal Ascension 50 lần",
+              fish = { F("Rainbow Dragonfish", 1, 6.5e6, nil, "Rainbow Bait") } },
+            { title = "Frost Kingfish 5M (Tuyết) + Frost Queenfish 6.5M", manual = "Dùng Tenfold Convergence 100 lần",
+              fish = { F("Frost Kingfish", 1, 5e6, "Frost Isle", nil, "snow"), F("Frost Queenfish", 1, 6.5e6, "Frost Isle", "Frost Bait") } },
+        },
+    },
+    {
+        name = "Đạo Sĩ (Xiao Daoshi / Taoist)",
+        keys = { "xiaodaoshi", "taoist", "taosi" }, q = { "daoshi", "taoist", "taosi" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Nameless Octoparasite 7M (Nameless Bait)", manual = "Cần Apex Eagle Hunt + Taoist Rod + nâng Xiao Daoshi Lv5",
+              fish = { F("Nameless Octoparasite", 1, 7e6, nil, "Nameless Bait") } },
+            { title = "Black Tortoise Bloodline 14M + 1B Cash", manual = "Nộp 1B Cash + cần chiêu Demon Mountainbreaker",
+              fish = { F("Black Tortoise Bloodline", 1, 14e6) } },
+        },
+    },
+    {
+        name = "Mao Sơn (Đại Sư Huynh)",
+        keys = { "maoshan", "dashixiong", "maosan" }, q = { "maoshan", "shixiong", "maosan" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Nameless Octoparasite (Nameless Bait)", manual = "Cần Nine Suns Ascension + Yuqing Flowing Cast",
+              fish = { F("Nameless Octoparasite", 1, nil, nil, "Nameless Bait") } },
+            { title = "Nameless Octoparasite 6M", manual = "Nâng Da Shixiong lên Level 5",
+              fish = { F("Nameless Octoparasite", 1, 6e6, nil, "Nameless Bait") } },
+            { title = "Online 49 ngày", manual = "Chỉ cần online tích lũy đủ 49 ngày, script không làm được" },
+        },
+    },
+    {
+        name = "Bắc Minh (Beiming)",
+        keys = { "beiming", "bacminh" }, q = { "beiming", "bacminh" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "5 Nameless Octoparasite", manual = "Cần chiêu Bac Minh Technique + Head Smash",
+              fish = { F("Nameless Octoparasite", 5, nil, nil, "Nameless Bait") } },
+            { title = "Dùng Head Smash + Bac Minh 50 lần", manual = "Dùng mỗi chiêu 50 lần (bật Auto Skill)" },
+        },
+    },
+    {
+        name = "Biao Di",
+        keys = { "biaodi" }, q = { "biaodi" }, home = { "World Angler Isle", "Beginning Isle" },
+        steps = {
+            { title = "Golden Shark 3M (World Angler)", manual = "Cần Seven Wounds Fusion, Friend Slaying Fishing Art, Beastbreaker Cleave V2",
+              fish = { F("Golden Shark", 1, 3e6, "World Angler Isle") } },
+            { title = "Dragonfish Devourer 5M (ban ngày) + 100 boss", manual = "Cần Six Vein Divine Hook + nâng Biao Di Lv5",
+              fish = { F("Dragonfish Devourer", 1, 5e6, "World Angler Isle", nil, nil, "day") }, boss = B(nil, "Normal", 100, false) },
+            { title = "50 boss + Thunder Bull Shark 40M", boss = B(nil, "Normal", 50, false),
+              fish = { F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait") } },
+        },
+    },
+    {
+        name = "Yaxuo",
+        keys = { "yaxuo" }, q = { "yaxuo" }, home = { "Mystic Reef Isle", "Beginning Isle" },
+        steps = {
+            { title = "Nộp 50M tiền", manual = "Nộp 50M Cash (không cần câu cá)" },
+            { title = "Demon Bladefish 2.5M (Mystic Reef)", manual = "Nâng Yaxuo lên Level 3",
+              fish = { F("Demon Bladefish", 1, 2.5e6, "Mystic Reef Isle") } },
+            { title = "Colossal Bull Shark 5M (Bão sấm) + 500 Crystals", manual = "Nộp 500 Crystals",
+              fish = { F("Colossal Bull Shark", 1, 5e6, "Mystic Reef Isle", nil, "thunder") } },
+            { title = "Thunder Bull Shark 50M", manual = "Nâng Yaxuo lên Level 5",
+              fish = { F("Thunder Bull Shark", 1, 50e6, nil, "Thunder Bait") } },
+        },
+    },
+    {
+        name = "Luoya Zhi Wang",
+        keys = { "luoya" }, q = { "luoya" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Nộp 100M tiền", manual = "Cần chiêu Soul Chain Assault + nộp 100M Cash" },
+            { title = "100 boss + Dark Lionfish 2.5M (Mưa, Mistpeak)", boss = B(nil, "Normal", 100, false),
+              fish = { F("Dark Lionfish", 1, 2.5e6, "Mistpeak Isle", nil, "rain") } },
+            { title = "Black Tortoise Bloodline 8M", manual = "Nâng Luoya Zhi Wang lên Level 2",
+              fish = { F("Black Tortoise Bloodline", 1, 8e6) } },
+        },
+    },
+    {
+        name = "Liu Ju He",
+        keys = { "liujuhe", "liuju" }, q = { "liuju" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Nộp 100 Crystals", manual = "Cần chiêu Time Severing Hook + nộp 100 Crystals" },
+            { title = "Thunder Bull Shark 30M + hạ Long Diaohai (Normal)", manual = "Dùng Serpentine Sword Intent 50 lần",
+              fish = { F("Thunder Bull Shark", 1, 30e6, nil, "Thunder Bait") }, boss = B("diaohai", "Normal", 1, true) },
+            { title = "Hạ Long Diaohai (Hard) + 100 boss", manual = "Nâng Liu Ju He lên Level 3",
+              boss = B("diaohai", "Hard", 1, true) },
+        },
+    },
+    {
+        name = "Shi Xing Diao",
+        keys = { "shixingdiao" }, q = { "shixingdiao" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Nâng Biao Di + Biao Ge Lv5", manual = "Nâng Biao Di và Biao Ge lên Level 5" },
+            { title = "Vermilion Birdblood 50M", fish = { F("Vermilion Birdblood", 1, 50e6) } },
+            { title = "Vermilion Birdblood 75M", manual = "Nâng Shi Xing Diao lên Level 5",
+              fish = { F("Vermilion Birdblood", 1, 75e6) } },
+        },
+    },
+    {
+        name = "Blind Grand Angler",
+        keys = { "blindgrand", "grandangler" }, q = { "blindgrand", "grandangler" }, home = { "Battlefield Isle" },
+        steps = {
+            { title = "Crimson Bream 2.5M + Silver Bream 3.5M", manual = "Cần 3 chiêu Tiger's Hunt, Heaven's Burden, Astral Grand Art",
+              fish = { F("Crimson Bream Sovereign", 1, 2.5e6, "Battlefield Isle"), F("Silver Bream Sovereign", 1, 3.5e6, "Battlefield Isle") } },
+        },
+    },
+    {
+        name = "Ha Dieu De",
+        keys = { "hadieude", "hadieu", "dieude" }, q = { "hadieu", "dieude" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Rainbow Dragonfish 7M (Rainbow Bait)", manual = "Dùng Gate of Closure, Gate of Opening, Sever the Gate V2 mỗi chiêu 50 lần",
+              fish = { F("Rainbow Dragonfish", 1, 7e6, nil, "Rainbow Bait") } },
+        },
+    },
+    {
+        name = "Chu Tianjiao (Sở Thiên Kiêu)",
+        keys = { "chutianjiao", "tianjiao" }, q = { "tianjiao" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Vermilion Birdblood 75M", manual = "Nâng Chu Xin, Biao Di, Ba Chang lên Level 5",
+              fish = { F("Vermilion Birdblood", 1, 75e6) } },
+        },
+    },
+    {
+        name = "Samba (không chắc 100% thứ tự)",
+        keys = { "samba" }, q = { "samba" }, home = { "Beginning Isle" },
+        steps = {
+            { title = "Hạ Enzo (Normal)", boss = B("enzo", "Normal", 1, false) },
+            { title = "Hạ Enzo (Hard)", boss = B("enzo", "Hard", 1, false) },
+            { title = "Hạ Enzo (Nightmare)", manual = "Thắng 5 trận PvP", boss = B("enzo", "Nightmare", 1, false) },
+            { title = "One-shot Enzo (Normal)", manual = "Nâng Samba Lv5 + hạ Enzo (Normal) chỉ bằng 1 chiêu", boss = B("enzo", "Normal", 1, false) },
+        },
+    },
+}
+
+local CHAIN_BY = {}
+local CHAIN_NAMES = {}
+for _, ch in ipairs(CHAINS) do
+    CHAIN_BY[ch.name] = ch
+    table.insert(CHAIN_NAMES, ch.name)
+end
+
+-- ----------------------------------------------------- lưu / đọc cài đặt riêng
+local QC_FILE = SAVE_FOLDER .. "/QuestChain.json"
+local QC = { On = false, Chain = CHAINS[1].name, Stage = 1, Fallback = Config.SelectedFarmIsland or "Beginning Isle" }
+pcall(function()
+    if isfile(QC_FILE) then
+        local d = HttpService:JSONDecode(readfile(QC_FILE))
+        for k in pairs(QC) do
+            if d[k] ~= nil then QC[k] = d[k] end
+        end
+    end
+end)
+if not CHAIN_BY[QC.Chain] then QC.Chain = CHAINS[1].name end
+local function saveQC()
+    pcall(function()
+        if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
+        writefile(QC_FILE, HttpService:JSONEncode(QC))
+    end)
+end
+
+-- ----------------------------------------------------- đọc túi cá / cần / mồi
+local function itemCount(obj)
+    local c = 0
+    if obj:IsA("ValueBase") and type(obj.Value) == "number" then c = obj.Value end
+    if c <= 0 then
+        for _, n in ipairs({ "Quantity", "Count", "Amount" }) do
+            local v = obj:FindFirstChild(n)
+            if v and v:IsA("ValueBase") then c = tonumber(v.Value) or 0 break end
+        end
+    end
+    if c <= 0 then
+        c = tonumber(obj:GetAttribute("Quantity") or obj:GetAttribute("Count") or obj:GetAttribute("Amount")) or 0
+    end
+    if c <= 0 then c = 1 end
+    return c
+end
+
+local function weightOf(obj)
+    for _, n in ipairs({ "Weight", "Size", "Kg", "Mass" }) do
+        local a = tonumber(obj:GetAttribute(n))
+        if a then return a end
+        local v = obj:FindFirstChild(n)
+        if v and v:IsA("ValueBase") and tonumber(v.Value) then return tonumber(v.Value) end
+    end
+    return nil
+end
+
+local function nameOf(obj)
+    return obj:GetAttribute("FishName") or obj:GetAttribute("Name") or obj.Name
+end
+
+local FISH_CONTAINERS = { "Inventory", "Fish", "Fishes", "FishInventory", "Fishing" }
+
+local function scanFish()
+    local list = {}
+    for _, cn in ipairs(FISH_CONTAINERS) do
+        local c = PlayerData:FindFirstChild(cn)
+        if c then
+            for _, ch in ipairs(c:GetChildren()) do
+                table.insert(list, { Name = cleanName(nameOf(ch)), Raw = ch.Name, Count = itemCount(ch), Weight = weightOf(ch) })
+            end
+        end
+    end
+    return list
+end
+
+-- Đếm cá đúng tên (nil = bất kỳ) và nặng >= minW. Lấy max(túi đồ, bộ đếm phiên).
+local function fishCount(name, minW)
+    local inv = 0
+    for _, e in ipairs(scanFish()) do
+        if (not name or e.Name == name) then
+            if not minW then
+                inv += e.Count
+            elseif e.Weight and e.Weight >= minW then
+                inv += e.Count
+            end
+        end
+    end
+    local tr = 0
+    for _, e in ipairs(JL.Caught) do
+        if (not name or e.name == name) and (not minW or (e.weight and e.weight >= minW)) then
+            tr += 1
+        end
+    end
+    return math.max(inv, tr)
+end
+
+local function ownsRod(partial)
+    local inv = PlayerData:FindFirstChild("FishingRodInventory")
+    if inv then
+        for _, r in ipairs(inv:GetChildren()) do
+            if squash(r.Name):find(partial, 1, true) then return true end
+        end
+    end
+    return false
+end
+
+local function ownsBait(name)
+    local want = squash(name)
+    for _, cn in ipairs({ "Bait", "Inventory" }) do
+        local c = PlayerData:FindFirstChild(cn)
+        if c then
+            for _, ch in ipairs(c:GetChildren()) do
+                if squash(cleanName(ch.Name)):find(want, 1, true) and itemCount(ch) > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function equipBait(name)
+    if os.clock() - JL.LastBait < 15 then return end
+    JL.LastBait = os.clock()
+    local ev = EquipBaitEvent or Events:FindFirstChild("EquipBait")
+    if not ev then return end
+    pcall(function()
+        if ev:IsA("RemoteFunction") then ev:InvokeServer(name) else ev:FireServer(name) end
+    end)
+end
+
+-- ----------------------------------------------------- thời tiết / ngày đêm
+local WX = {
+    snow = { "snow" },
+    wind = { "wind" },
+    hot = { "heat", "sun", "scorch", "hot", "drought" },
+    thunder = { "thunder", "storm" },
+    rain = { "rain" },
+}
+local WX_LABEL = { snow = "Tuyết", wind = "Gió", hot = "Nắng gắt", thunder = "Bão sấm", rain = "Mưa" }
+
+local function weatherText()
+    local found
+    for _, o in ipairs({ workspace, ReplicatedStorage, Lighting, PlayerData, DataFolder, Info }) do
+        for _, n in ipairs({ "Weather", "CurrentWeather", "Event" }) do
+            local a = o:GetAttribute(n)
+            if a ~= nil and a ~= "" then found = (found or "") .. " " .. tostring(a) end
+            local v = o:FindFirstChild(n)
+            if v and v:IsA("ValueBase") and v.Value ~= nil and v.Value ~= "" then
+                found = (found or "") .. " " .. tostring(v.Value)
+            end
+        end
+    end
+    return found and string.lower(found) or nil
+end
+
+local function weatherIs(key)
+    local t = weatherText()
+    if not t then return nil end
+    for _, w in ipairs(WX[key] or { key }) do
+        if t:find(w, 1, true) then return true end
+    end
+    return false
+end
+
+local function isNight()
+    local t = Lighting.ClockTime
+    return t >= 18 or t < 6
+end
+
+-- ------------------------------------------------------------ boss kills
+local function bossCount(b)
+    return JL.BossKills[b.k or "any"] or 0
+end
+
+-- ------------------------------------------------------------ quest state
+local function findQuest(chain)
+    local q = PlayerData:FindFirstChild("Quest")
+    local containers = { q and q:FindFirstChild("Main"), q, PlayerData }
+    for _, c in ipairs(containers) do
+        if c then
+            for _, ch in ipairs(c:GetChildren()) do
+                if ch:IsA("Folder") or ch:IsA("Configuration") then
+                    local l = squash(ch.Name)
+                    if not l:find("ticket", 1, true) then
+                        for _, k in ipairs(chain.q) do
+                            if l:find(k, 1, true) then return ch end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- trả về: hoàn thành? (nil = không rõ), có mục tiêu dạng số?
+local function questState(qf)
+    if not qf then return nil, false end
+    local infoMain = Info:FindFirstChild("MainQuest")
+    local qi
+    if infoMain then
+        local m = infoMain:FindFirstChild(qf.Name)
+        if m then pcall(function() qi = require(m) end) end
+    end
+    local has, unknown = false, false
+    for _, ch in ipairs(qf:GetChildren()) do
+        if ch:IsA("NumberValue") or ch:IsA("IntValue") then
+            has = true
+            local target
+            local idx = tonumber(ch.Name)
+            if qi and idx and qi[idx] then target = tonumber(qi[idx][2]) end
+            if not target and qf:FindFirstChild("Objective") then
+                local ov = qf.Objective:FindFirstChild(ch.Name)
+                if ov and ov:IsA("StringValue") then
+                    target = tonumber(string.split(ov.Value, ",")[2])
+                end
+            end
+            if target then
+                if ch.Value < target then return false, true end
+            else
+                unknown = true
+            end
+        end
+    end
+    if not has then return nil, false end
+    if unknown then return nil, true end
+    return true, true
+end
+
+local function currentTarget(st)
+    for _, f in ipairs(st.fish or {}) do
+        if fishCount(f.n, f.w) < (f.c or 1) then return f end
+    end
+    return nil
+end
+
+local function stepDone(st, qf)
+    local qDone, qHas = questState(qf)
+    if qHas and qDone ~= nil then return qDone end
+    if not ((st.fish and #st.fish > 0) or st.boss) then return false end
+    if currentTarget(st) then return false end
+    if st.boss and bossCount(st.boss) < st.boss.c then return false end
+    return true
+end
+
+-- --------------------------------------------------------------- tìm NPC
+local function findNpc(chain)
+    local roots = { workspace:FindFirstChild("NPC"), workspace }
+    for _, r in ipairs(roots) do
+        if r then
+            for _, d in ipairs(r:GetDescendants()) do
+                if d:IsA("Model") or d:IsA("BasePart") then
+                    local s = squash(d.Name)
+                    for _, k in ipairs(chain.keys) do
+                        if s:find(k, 1, true) then
+                            local p = GetModelPart(d)
+                            if p and p:IsDescendantOf(workspace) then
+                                return d, p
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function gotoNpc(chain, st)
+    local char = LocalPlayer.Character or cachedChar
+    local hrp = (char and char:FindFirstChild("HumanoidRootPart")) or cachedHrp
+    if not hrp then return false end
+    local m, p = findNpc(chain)
+    if not p then
+        for _, home in ipairs(st.home or chain.home or {}) do
+            TeleportToIsland(home)
+            task.wait(1.5)
+            m, p = findNpc(chain)
+            if p then break end
+        end
+    end
+    if not p then
+        JL.Status = "Không thấy NPC '" .. chain.name .. "' (xem nút Debug)"
+        return false
+    end
+    if (hrp.Position - p.Position).Magnitude > 14 then
+        hrp.CFrame = p.CFrame * CFrame.new(0, 3, -4)
+        task.wait(0.4)
+    end
+    return true
+end
+
+-- ---------------------------------------------------------- nói chuyện NPC
+local DIALOG_KEYS = { "quest", "complete", "turn", "give", "hand", "claim", "accept", "continue", "next", "skill", "ok" }
+local BAD_KEYS = { "close", "leave", "cancel", "bye", "nevermind" }
+
+local function clickDialogue()
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    local menu = pg and pg:FindFirstChild("MainGui") and pg.MainGui:FindFirstChild("Menu")
+    local dlg = menu and menu:FindFirstChild("Dialogue")
+    if not dlg or not dlg.Visible then return end
+    local bf = dlg:FindFirstChild("ButtonFrame")
+    if bf then
+        for _, btn in ipairs(bf:GetChildren()) do
+            if btn:IsA("TextButton") and btn.Name ~= "Template" and btn.Visible then
+                local t = norm(GetButtonLabelText(btn))
+                local bad, good = false, false
+                for _, k in ipairs(BAD_KEYS) do if t:find(k, 1, true) then bad = true end end
+                for _, k in ipairs(DIALOG_KEYS) do if t:find(k, 1, true) then good = true end end
+                if good and not bad then
+                    TriggerGuiButton(btn)
+                    task.wait(0.4)
+                end
+            end
+        end
+    end
+    pcall(function() dlg.Visible = false end)
+end
+
+local function interact(chain)
+    local m, p = findNpc(chain)
+    if not p then return false end
+    local prompt = (m and m:FindFirstChildWhichIsA("ProximityPrompt", true)) or p:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt and fireproximityprompt then
+        pcall(fireproximityprompt, prompt)
+        task.wait(0.4)
+    end
+    local learned = JL.Learned[chain.name]
+    if learned and #learned > 0 then
+        for _, a in ipairs(learned) do
+            pcall(function() ChooseDialogueOption:FireServer(unpack(a, 1, a.n)) end)
+            task.wait(0.4)
+        end
+    else
+        local nm = m and m.Name or chain.name
+        local g = m or p
+        pcall(function() ChooseDialogueOption:FireServer(nm, 1, "Quest", { g }) end)
+        task.wait(0.3)
+        pcall(function() ChooseDialogueOption:FireServer(nm, 1, "AcceptQuest", { g, nm .. " Quest" }) end)
+        task.wait(0.3)
+    end
+    clickDialogue()
+    return true
+end
+
+local function chainByNpc(s)
+    local l = squash(s)
+    for _, ch in ipairs(CHAINS) do
+        for _, k in ipairs(ch.keys) do
+            if l:find(k, 1, true) then return ch end
+        end
+    end
+    return nil
+end
+
+-- ------------------------------------------- hook: chặn bán cá + học hội thoại
+do
+    if hookmetamethod and getnamecallmethod then
+        local wrap = newcclosure or function(f) return f end
+        local old
+        old = hookmetamethod(game, "__namecall", wrap(function(self, ...)
+            local method = getnamecallmethod()
+            if method == "FireServer" or method == "InvokeServer" then
+                if self == SellFish and JL.Protect then
+                    JL.BlockedSells += 1
+                    return nil
+                end
+                if self == ChooseDialogueOption and not checkcaller() then
+                    local args = table.pack(...)
+                    pcall(function()
+                        if type(args[1]) == "string" then
+                            local ch = chainByNpc(args[1])
+                            if ch then
+                                local key = tostring(args[1]) .. "|" .. tostring(args[2]) .. "|" .. tostring(args[3])
+                                local list = JL.Learned[ch.name]
+                                if not list then list = {} JL.Learned[ch.name] = list end
+                                for _, a in ipairs(list) do
+                                    if a.key == key then return end
+                                end
+                                args.key = key
+                                table.insert(list, args)
+                                while #list > 6 do table.remove(list, 1) end
+                                task.defer(notify, ch.name, "Đã học thao tác hội thoại (" .. #list .. ")")
+                            end
+                        end
+                    end)
+                end
+            end
+            return old(self, ...)
+        end))
+    end
+end
+
+-- ----------------------------------- theo dõi cá đang câu + cá đã câu (tên/cân)
+task.spawn(function()
+    while task.wait(0.25) do
+        pcall(function()
+            if FishingGui and FishingGui.Visible then
+                local id = LocalPlayer:GetAttribute("FishID")
+                local folder = workspace:FindFirstChild("Fishes")
+                local obj = (id and folder) and folder:FindFirstChild(tostring(id)) or nil
+                if obj then
+                    local nm = obj:GetAttribute("Name") or obj:GetAttribute("FishName")
+                    if not nm then
+                        local pb = FishingGui:FindFirstChild("ProgressionBar")
+                        local lbl = pb and pb:FindFirstChild("FishName")
+                        nm = lbl and lbl.Text or ""
+                    end
+                    JL.LastFish = { name = cleanName(nm), weight = weightOf(obj) }
+                end
+            end
+        end)
+    end
+end)
+
+pcall(function()
+    local ev = Events:FindFirstChild("ReplicateFishCaught")
+    if ev and ev:IsA("RemoteEvent") then
+        ev.OnClientEvent:Connect(function(charModel, fishName)
+            if charModel ~= LocalPlayer.Character then return end
+            local name = cleanName(fishName)
+            local w = (JL.LastFish and JL.LastFish.name == name) and JL.LastFish.weight or nil
+            table.insert(JL.Caught, { name = name, weight = w })
+            while #JL.Caught > 400 do table.remove(JL.Caught, 1) end
+            if name:find("diaohai", 1, true) or name:find("longdiao", 1, true) then
+                JL.BossKills.diaohai += 1
+                JL.BossKills.any += 1
+            elseif name:find("enzo", 1, true) then
+                JL.BossKills.enzo += 1
+                JL.BossKills.any += 1
+            end
+        end)
+    end
+end)
+
+-- ------------------------------------------------------------------ điều khiển farm
+local function farmOff()
+    if JL.FarmOn then
+        setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
+        JL.FarmOn = false
+    end
+    setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+    setFlag("AutoBossToggle", "AutoBoss", false)
+end
+
+local function farmAt(island)
+    setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+    setFlag("AutoBossToggle", "AutoBoss", false)
+    Config.SelectedFarmIsland = island
+    setFlag("AutoFarmIslandToggle", "AutoFarmIsland", true)
+    setFlag("AutoReelToggle", "AutoReel", true)
+    setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
+    setFlag("AutoSkillToggle", "AutoSkill", true)
+    JL.FarmOn = true
+    pcall(StepAutoFarmIsland, LocalPlayer.Character)
+end
+
+local function bossOn(b)
+    if JL.FarmOn then
+        setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
+        JL.FarmOn = false
+    end
+    local f = Library.Flags["SelectBossModeDropdown"]
+    if f and f.Set then pcall(f.Set, f, b.mode) else Config.BossMode = b.mode end
+    setFlag("AutoReelToggle", "AutoReel", true)
+    setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
+    setFlag("AutoSkillToggle", "AutoSkill", true)
+    if b.secret then
+        setFlag("AutoBossToggle", "AutoBoss", false)
+        setFlag("AutoSecretBossToggle", "AutoSecretBoss", true)
+    else
+        setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+        setFlag("AutoBossToggle", "AutoBoss", true)
+    end
+end
+
+local function inMinigame()
+    return FishingGui and FishingGui.Visible
+end
+
+local function progressText(chain, idx, st, qf)
+    local parts = {}
+    for _, f in ipairs(st.fish or {}) do
+        table.insert(parts, string.format("%s %d/%d%s", f.raw, fishCount(f.n, f.w), f.c, f.w and (" ≥" .. fmtW(f.w)) or ""))
+    end
+    if st.boss then
+        table.insert(parts, string.format("Boss %s %d/%d", st.boss.k or "bất kỳ", bossCount(st.boss), st.boss.c))
+    end
+    local qDone, qHas = questState(qf)
+    local qs = qf and (qHas and (qDone == nil and "?" or (qDone and "✓" or "✗")) or "?") or "chưa nhận"
+    return string.format("B%d/%d | %s | Quest %s", idx, #chain.steps,
+        #parts > 0 and table.concat(parts, " | ") or "(không có mục tiêu cá, dùng Auto Farm)", qs)
+end
+
+local function refreshStepUI()
+    if UI.refreshSteps then pcall(UI.refreshSteps) end
+end
+
+local function finishChain(chain)
+    JL.Status = "HOÀN TẤT chuỗi " .. chain.name .. "!"
+    notify("Chuỗi nhiệm vụ", "Hoàn tất toàn bộ chuỗi " .. chain.name)
+    JL.Protect = false
+    farmOff()
+    if UI.Toggle then UI.Toggle:Set(false) else QC.On = false saveQC() end
+end
+
+-- ---------------------------------------------------------------------- vòng chính
+local function step()
+    local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+    local idx = math.clamp(math.floor(tonumber(QC.Stage) or 1), 1, #chain.steps)
+    local st = chain.steps[idx]
+    if not (LocalPlayer.Character or cachedChar) then return end
+    local qf = findQuest(chain)
+    JL.Progress = progressText(chain, idx, st, qf)
+    local tag = chain.name .. "#" .. idx
+
+    if st.manual then
+        warnOnce("man" .. tag, "Yêu cầu thủ công", st.manual)
+    end
+    if st.rod and not ownsRod(st.rod) then
+        warnOnce("rod" .. tag, "Thiếu cần câu", "Bạn chưa có cần yêu cầu cho bước này")
+    end
+
+    if stepDone(st, qf) then
+        if inMinigame() then JL.Status = "Chờ kéo xong cá rồi trả nhiệm vụ..." return end
+        farmOff()
+        JL.Status = "B" .. idx .. " xong → trả nhiệm vụ (" .. chain.name .. ")"
+        if os.clock() - JL.LastTurnIn < 6 then return end
+        if not gotoNpc(chain, st) then return end
+        JL.LastTurnIn = os.clock()
+        interact(chain)
+        task.wait(2)
+        JL.Caught = {}
+        JL.BossKills = { any = 0, enzo = 0, diaohai = 0 }
+        if not stepDone(st, findQuest(chain)) then
+            if idx >= #chain.steps then
+                finishChain(chain)
+            else
+                QC.Stage = idx + 1
+                JL.AcceptTries[chain.name .. "#" .. (idx + 1)] = 0
+                saveQC()
+                refreshStepUI()
+                notify(chain.name, "Đã trả B" .. idx .. " → chuyển sang B" .. (idx + 1))
+            end
+        end
+        return
+    end
+
+    -- chưa xong: nhận nhiệm vụ nếu chưa có
+    if not qf and (JL.AcceptTries[tag] or 0) < 3 and os.clock() - JL.LastAccept > 8 and not inMinigame() then
+        JL.Status = "B" .. idx .. ": đến NPC nhận nhiệm vụ"
+        JL.LastAccept = os.clock()
+        JL.AcceptTries[tag] = (JL.AcceptTries[tag] or 0) + 1
+        farmOff()
+        if gotoNpc(chain, st) then interact(chain) end
+        return
+    end
+
+    local f = currentTarget(st)
+    if f then
+        -- mồi
+        if f.b then
+            setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", false)
+            if ownsBait(f.b) then
+                equipBait(f.b)
+            else
+                warnOnce("bait" .. f.b, "Thiếu mồi", "Cần mồi " .. f.b .. " (mua/craft ở tab Shop)")
+            end
+        else
+            setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", true)
+        end
+        local waits = {}
+        if f.wx then
+            local ok = weatherIs(f.wx)
+            if ok == false then table.insert(waits, "chờ thời tiết " .. (WX_LABEL[f.wx] or f.wx)) end
+        end
+        if f.t then
+            if (f.t == "night") ~= isNight() then
+                table.insert(waits, f.t == "night" and "chờ ban đêm" or "chờ ban ngày")
+            end
+        end
+        local island = f.i or st.island or QC.Fallback
+        JL.Status = string.format("B%d: câu %s tại %s%s", idx, f.raw, island,
+            #waits > 0 and (" (" .. table.concat(waits, ", ") .. ")") or "")
+        if not f.i and not st.island then
+            warnOnce("isl" .. tag, "Đảo chưa rõ", "Bước này không nêu đảo, dùng đảo dự phòng: " .. QC.Fallback .. " (đổi ở dropdown 'Đảo dự phòng')")
+        end
+        farmAt(island)
+    elseif st.boss and bossCount(st.boss) < st.boss.c then
+        JL.Status = string.format("B%d: đánh boss %s (%s)", idx, st.boss.k or "bất kỳ", st.boss.mode)
+        bossOn(st.boss)
+    else
+        -- bước chỉ cần dùng chiêu / yêu cầu thủ công: farm bình thường rồi chờ quest báo xong
+        JL.Status = "B" .. idx .. ": farm chờ hoàn thành yêu cầu thủ công"
+        farmAt(st.island or QC.Fallback)
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if QC.On then
+            JL.Protect = true
+            local ok, err = pcall(step)
+            if not ok then
+                JL.Status = "Lỗi: " .. tostring(err)
+                warn("[QuestChain] " .. tostring(err))
+            end
+        else
+            if JL.Protect or JL.FarmOn then
+                JL.Protect = false
+                farmOff()
+            end
+            JL.Status = "Tắt"
+        end
+    end
+end)
+
+-- ------------------------------------------------------------------------ UI
+local QTab = Window:CreateTab({ Name = "Chuỗi nhiệm vụ", Icon = "fish" })
+
+QTab:CreateSection("Auto chuỗi nhiệm vụ")
+
+UI.Toggle = QTab:CreateToggle({
+    Flag = "AutoQuestChainToggle",
+    Name = "Auto chuỗi nhiệm vụ",
+    CurrentValue = QC.On,
+    Callback = function(Value)
+        QC.On = Value
+        saveQC()
+        if Value then
+            JL.Warned = {}
+            notify("Chuỗi nhiệm vụ", "Đã bật. Đang CHẶN bán cá trong lúc chạy.")
+        end
+    end
+})
+
+local function stepOptions()
+    local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+    local opts = {}
+    for i, st in ipairs(chain.steps) do
+        table.insert(opts, string.format("B%d · %s", i, st.title))
+    end
+    return opts, chain
+end
+
+local function stepLabel(idx)
+    local opts = stepOptions()
+    return opts[math.clamp(idx, 1, #opts)]
+end
+
+UI.ChainDD = QTab:CreateDropdown({
+    Flag = "QuestChainDropdown",
+    Name = "Chuỗi nhiệm vụ",
+    Options = CHAIN_NAMES,
+    CurrentOption = QC.Chain,
+    MultipleOptions = false,
+    AllowNone = false,
+    Callback = function(Value)
+        if not Value or not CHAIN_BY[Value] or Value == QC.Chain then return end
+        QC.Chain = Value
+        QC.Stage = 1
+        saveQC()
+        JL.Warned = {}
+        refreshStepUI()
+    end
+})
+
+do
+    local opts = stepOptions()
+    UI.StepDD = QTab:CreateDropdown({
+        Flag = "QuestStepDropdown",
+        Name = "Bước hiện tại",
+        Options = opts,
+        CurrentOption = stepLabel(QC.Stage),
+        MultipleOptions = false,
+        AllowNone = false,
+        Callback = function(Value)
+            local n = tonumber(tostring(Value or ""):match("^B(%d+)"))
+            if n and n ~= QC.Stage then
+                QC.Stage = n
+                saveQC()
+            end
+        end
+    })
+end
+
+function UI.refreshSteps()
+    local opts = stepOptions()
+    if UI.ChainDD and UI.ChainDD:Get() ~= QC.Chain then UI.ChainDD:Set(QC.Chain, true) end
+    UI.StepDD:Refresh(opts, false, true)
+    UI.StepDD:Set(stepLabel(QC.Stage), true)
+end
+
+do
+    local islandOpts = {}
+    for n in pairs(CanonicalIslandOrder) do table.insert(islandOpts, n) end
+    table.sort(islandOpts, function(a, b) return CanonicalIslandOrder[a] < CanonicalIslandOrder[b] end)
+    QTab:CreateDropdown({
+        Flag = "QuestFallbackIslandDropdown",
+        Name = "Đảo dự phòng (khi bước không nêu đảo)",
+        Options = islandOpts,
+        CurrentOption = table.find(islandOpts, QC.Fallback) and QC.Fallback or islandOpts[1],
+        MultipleOptions = false,
+        AllowNone = false,
+        Callback = function(Value)
+            QC.Fallback = Value or QC.Fallback
+            saveQC()
+        end
+    })
+end
+
+QTab:CreateLabel({
+    Text = "Trạng thái...",
+    Update = function() return "Trạng thái: " .. tostring(JL.Status) end,
+    UpdateRate = 1,
+})
+QTab:CreateLabel({
+    Text = "Tiến độ...",
+    Update = function() return tostring(JL.Progress) end,
+    UpdateRate = 1,
+})
+QTab:CreateLabel({
+    Text = "Bảo vệ cá...",
+    Update = function()
+        local learned = JL.Learned[QC.Chain]
+        return string.format("Chặn bán cá: %s (đã chặn %d lệnh) | Thao tác đã học: %d",
+            JL.Protect and "BẬT" or "tắt", JL.BlockedSells, learned and #learned or 0)
+    end,
+    UpdateRate = 1,
+})
+QTab:CreateLabel({
+    Text = "Yêu cầu...",
+    Update = function()
+        local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+        local st = chain.steps[math.clamp(QC.Stage, 1, #chain.steps)]
+        return st.manual and ("Cần tự làm: " .. st.manual) or "Bước này script tự làm được."
+    end,
+    UpdateRate = 2,
+})
+
+QTab:CreateSection("Công cụ")
+
+QTab:CreateButton({
+    Name = "Teleport tới NPC của chuỗi",
+    Callback = function()
+        task.spawn(function()
+            local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+            local st = chain.steps[math.clamp(QC.Stage, 1, #chain.steps)]
+            if not gotoNpc(chain, st) then notify("Chuỗi nhiệm vụ", "Không tìm thấy NPC") end
+        end)
+    end
+})
+
+QTab:CreateButton({
+    Name = "Nói chuyện / nhận-trả nhiệm vụ ngay",
+    Callback = function()
+        task.spawn(function()
+            local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+            if not interact(chain) then notify("Chuỗi nhiệm vụ", "Hãy đứng gần NPC trước") end
+        end)
+    end
+})
+
+QTab:CreateButton({
+    Name = "Sang bước kế tiếp (bỏ qua bước này)",
+    Callback = function()
+        local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+        if QC.Stage < #chain.steps then
+            QC.Stage += 1
+            saveQC()
+            refreshStepUI()
+        end
+    end
+})
+
+QTab:CreateButton({
+    Name = "Xóa thao tác đã học (chuỗi này)",
+    Callback = function()
+        JL.Learned[QC.Chain] = nil
+        notify("Chuỗi nhiệm vụ", "Đã xóa thao tác đã học")
+    end
+})
+
+QTab:CreateButton({
+    Name = "In dữ liệu debug (F9 console)",
+    Callback = function()
+        local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+        print("=== QUEST CHAIN DEBUG: " .. chain.name .. " ===")
+        local qf = findQuest(chain)
+        print("Quest folder:", qf and qf:GetFullName() or "không thấy")
+        if qf then
+            for _, c in ipairs(qf:GetDescendants()) do
+                print("  ", c:GetFullName(), c.ClassName, c:IsA("ValueBase") and tostring(c.Value) or "")
+            end
+        end
+        local q = PlayerData:FindFirstChild("Quest")
+        local main = q and q:FindFirstChild("Main")
+        print("Các quest đang có (Quest.Main):")
+        if main then
+            for _, c in ipairs(main:GetChildren()) do print("  ", c.Name) end
+        end
+        local m, p = findNpc(chain)
+        print("NPC:", m and m:GetFullName() or "không thấy", p and tostring(p.Position) or "")
+        print("Thời tiết:", tostring(weatherText()), "| Ban đêm:", tostring(isNight()))
+        local n = 0
+        for _, e in ipairs(scanFish()) do
+            n += 1
+            if n <= 80 then print("  fish:", e.Raw, "=>", e.Name, "x" .. e.Count, "kg:", tostring(e.Weight)) end
+        end
+        local learned = JL.Learned[chain.name]
+        for i, a in ipairs(learned or {}) do print("  learned", i, a.key) end
+        notify("Debug", "Đã in dữ liệu ra console (F9)")
+    end
+})
+
+end -- QUEST CHAINS
+
 Window:SelectTab(Tabs.Main)
 -- ==== MUSIC TAB: chép toàn bộ khối này thay cho khối music cũ ====
 local MusicTab = Window:Tab({ Title = "Music", Icon = "headphones" })

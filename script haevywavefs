@@ -24434,8 +24434,12 @@ local JL = {
     Learned = {},          -- [tên chuỗi] = danh sách thao tác hội thoại bạn tự làm (script học để lặp lại)
     Caught = {},           -- cá đã câu trong phiên {name, weight}
     BossKills = { any = 0, enzo = 0, diaohai = 0 },
-    BlockedSells = 0,
-    Protect = false,       -- true = CHẶN mọi lệnh SellFish
+    Locked = 0,            -- số lệnh khóa cá đã gửi
+    SellBusy = false,      -- đang xử lý "khóa rồi mới bán"
+    SellPass = false,      -- cho phép lệnh bán thật đi qua hook
+    LockBusy = false,
+    FavState = {},         -- [key] = true: script đã khóa và xác nhận
+    LastFavArg = nil,      -- chuỗi gửi lên FavoriteItem gần nhất (để soi định dạng)
     FarmOn = false,
     AcceptTries = {},
     LastAccept = 0,
@@ -25044,7 +25048,186 @@ __HH.chainByNpc = function(s)
     return nil
 end
 
--- ------------------------------------------- hook: chặn bán cá + học hội thoại
+-- ================= KHÓA CÁ NHIỆM VỤ TRƯỚC KHI BÁN =================
+-- Không chặn SellFish. Mỗi lệnh bán bị giữ lại, script khóa (Favorite) cá
+-- nhiệm vụ trước, xác nhận đã khóa xong rồi mới gửi lệnh bán thật.
+-- Trạng thái khóa KHÔNG đọc từ tên cá mà từ: dữ liệu con cá -> icon khóa
+-- trong túi cá (mờ = chưa khóa, rõ/trắng = đã khóa) -> bộ nhớ của script.
+
+__HH.favKey = function(s)
+    local r = tostring(s or ""):gsub("%s*|%s*[Ff]avorite%s*$", "")
+    return string.lower((r:gsub("%s+", " ")))
+end
+
+__HH.parseWeight = function(raw)
+    local part = string.split(tostring(raw), "|")[2]
+    if not part then return nil end
+    part = part:gsub(",", "")
+    return tonumber(string.match(part, "[%d%.]+"))
+end
+
+-- 1) đọc từ dữ liệu con cá
+__HH.lockFromData = function(raw)
+    for _, cn in ipairs(FISH_CONTAINERS) do
+        local c = PlayerData:FindFirstChild(cn)
+        local obj = c and c:FindFirstChild(raw)
+        if obj then
+            for _, k in ipairs({ "Favorite", "Favorited", "Locked", "Lock", "IsFavorite" }) do
+                local a = obj:GetAttribute(k)
+                if type(a) == "boolean" then return a end
+                local v = obj:FindFirstChild(k)
+                if v and v:IsA("BoolValue") then return v.Value end
+            end
+        end
+    end
+    return nil
+end
+
+-- 2) đọc từ icon khóa trong UI túi cá
+__HH.lockFromGui = function(raw)
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    local nm = string.lower(tostring(string.split(raw, "|")[1] or raw)):gsub("^%s+", ""):gsub("%s+$", "")
+    if nm == "" then return nil end
+    for _, d in ipairs(pg:GetDescendants()) do
+        if d:IsA("TextLabel") and d.Text ~= "" and string.lower(d.Text):find(nm, 1, true) then
+            local anc = d.Parent
+            for _ = 1, 4 do
+                if not anc or anc == pg then break end
+                for _, g in ipairs(anc:GetDescendants()) do
+                    if g:IsA("ImageLabel") or g:IsA("ImageButton") then
+                        local n = string.lower(g.Name)
+                        if n:find("lock", 1, true) or n:find("fav", 1, true) or n:find("star", 1, true) then
+                            return g.ImageTransparency < 0.35
+                        end
+                    end
+                end
+                anc = anc.Parent
+            end
+        end
+    end
+    return nil
+end
+
+-- true = đã khóa, false = chưa khóa, nil = không biết
+__HH.isLocked = function(raw)
+    local r = __HH.lockFromData(raw)
+    if r ~= nil then return r end
+    r = __HH.lockFromGui(raw)
+    if r ~= nil then return r end
+    if JL.FavState[__HH.favKey(raw)] then return true end
+    return nil
+end
+
+-- Cá cần giữ: mục tiêu của bước hiện tại + các bước sau (đủ số lượng, ưu tiên con nặng nhất)
+__HH.questFishToLock = function()
+    local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
+    local startIdx = math.clamp(math.floor(tonumber(QC.Stage) or 1), 1, #chain.steps)
+    local picked, used = {}, {}
+    local entries = __HH.scanFish()
+    for si = startIdx, #chain.steps do
+        for _, f in ipairs(chain.steps[si].fish or {}) do
+            if f.n or f.w then
+                local cands = {}
+                for _, e in ipairs(entries) do
+                    local w = e.Weight or __HH.parseWeight(e.Raw)
+                    if (not f.n or e.Name == f.n) and (not f.w or (w and w >= f.w)) then
+                        table.insert(cands, { e = e, w = w or 0 })
+                    end
+                end
+                table.sort(cands, function(a, b) return a.w > b.w end)
+                local need = f.c or 1
+                for _, c in ipairs(cands) do
+                    if need <= 0 then break end
+                    if not used[c.e] then
+                        used[c.e] = true
+                        need -= c.e.Count
+                        table.insert(picked, c.e)
+                    end
+                end
+            end
+        end
+    end
+    return picked
+end
+
+-- chuỗi gửi lên remote: giữ nguyên nếu đã có "| Favorite", chưa có thì thêm vào
+__HH.favArg = function(raw)
+    raw = tostring(raw)
+    if string.find(string.lower(raw), "|%s*favorite%s*$") then return raw end
+    return raw .. " | Favorite"
+end
+
+-- trả về: true nếu đã khóa hết; false + lý do nếu chưa
+__HH.lockQuestFish = function()
+    local ev = Events:FindFirstChild("FavoriteItem")
+    if not ev then
+        __HH.warnOnce("nofav", "Khóa cá", "Không tìm thấy remote FavoriteItem")
+        return false, "noremote"
+    end
+    local t0 = os.clock()
+    while JL.LockBusy and os.clock() - t0 < 8 do task.wait(0.1) end
+    if JL.LockBusy then return false, "busy" end
+    JL.LockBusy = true
+    local result, reason = true, nil
+    for _ = 1, 2 do
+        local pending, unknown = {}, 0
+        for _, e in ipairs(__HH.questFishToLock()) do
+            local st = __HH.isLocked(e.Raw)
+            if st == false then
+                table.insert(pending, e)
+            elseif st == nil then
+                unknown += 1
+            end
+        end
+        if unknown > 0 then
+            result, reason = false, "unknown"
+            break
+        end
+        if #pending == 0 then
+            result, reason = true, nil
+            break
+        end
+        for _, e in ipairs(pending) do
+            pcall(function() ev:FireServer(__HH.favArg(e.Raw)) end)
+            JL.FavState[__HH.favKey(e.Raw)] = true
+            JL.Locked += 1
+            task.wait(0.15)
+        end
+        -- đợi server cập nhật rồi mới kiểm tra lại, tránh bật/tắt 2 lần
+        local w0 = os.clock()
+        repeat
+            task.wait(0.2)
+            local left = 0
+            for _, e in ipairs(__HH.questFishToLock()) do
+                if __HH.isLocked(e.Raw) ~= true then left += 1 end
+            end
+        until left == 0 or os.clock() - w0 > 3
+    end
+    if result then
+        for _, e in ipairs(__HH.questFishToLock()) do
+            if __HH.isLocked(e.Raw) ~= true then
+                result, reason = false, "notlocked"
+                break
+            end
+        end
+    end
+    if reason == "unknown" then
+        __HH.warnOnce("unk", "Khóa cá", "Không đọc được trạng thái khóa. Hãy MỞ TÚI CÁ 1 lần rồi thử lại")
+    end
+    JL.LockBusy = false
+    return result, reason
+end
+
+task.spawn(function()
+    while task.wait(5) do
+        if QC.On and not JL.SellBusy and not JL.LockBusy then
+            pcall(__HH.lockQuestFish)
+        end
+    end
+end)
+
+-- ------------------------------------------- hook: khóa cá trước khi bán + học hội thoại
 do
     if hookmetamethod and getnamecallmethod then
         local wrap = newcclosure or function(f) return f end
@@ -25052,10 +25235,35 @@ do
         old = hookmetamethod(game, "__namecall", wrap(function(self, ...)
             local method = getnamecallmethod()
             if method == "FireServer" or method == "InvokeServer" then
-                if self == SellFish and JL.Protect then
-                    JL.BlockedSells += 1
+                -- ghi lại cách game gọi FavoriteItem (kể cả lúc bạn tự bấm khóa)
+                if method == "FireServer" and self.Name == "FavoriteItem" then
+                    local a = ...
+                    JL.LastFavArg = tostring(a)
+                    if type(checkcaller) == "function" and not checkcaller() then
+                        JL.FavState[__HH.favKey(a)] = nil
+                    end
+                end
+                -- BÁN: khóa cá nhiệm vụ trước, xong mới bán
+                if self == SellFish and method == "FireServer" and QC.On and not JL.SellPass then
+                    local args = table.pack(...)
+                    if not JL.SellBusy then
+                        JL.SellBusy = true
+                        task.spawn(function()
+                            local locked = false
+                            pcall(function() locked = __HH.lockQuestFish() end)
+                            if locked then
+                                JL.SellPass = true
+                                pcall(function() SellFish:FireServer(table.unpack(args, 1, args.n)) end)
+                                JL.SellPass = false
+                            else
+                                notify("Khóa cá", "Chưa khóa được cá nhiệm vụ → đã hủy lệnh bán")
+                            end
+                            JL.SellBusy = false
+                        end)
+                    end
                     return nil
                 end
+                -- học thao tác hội thoại
                 if self == ChooseDialogueOption and (type(checkcaller) ~= "function" or not checkcaller()) then
                     local args = table.pack(...)
                     pcall(function()
@@ -25190,7 +25398,6 @@ end
 __HH.finishChain = function(chain)
     JL.Status = "HOÀN TẤT chuỗi " .. chain.name .. "!"
     notify("Chuỗi nhiệm vụ", "Hoàn tất toàn bộ chuỗi " .. chain.name)
-    JL.Protect = false
     __HH.farmOff()
     if UI.Toggle then UI.Toggle:Set(false) else QC.On = false __HH.saveQC() end
 end
@@ -25290,15 +25497,13 @@ end
 task.spawn(function()
     while task.wait(1) do
         if QC.On then
-            JL.Protect = true
             local ok, err = pcall(step)
             if not ok then
                 JL.Status = "Lỗi: " .. tostring(err)
                 warn("[QuestChain] " .. tostring(err))
             end
         else
-            if JL.Protect or JL.FarmOn then
-                JL.Protect = false
+            if JL.FarmOn then
                 __HH.farmOff()
             end
             JL.Status = "Tắt"
@@ -25320,7 +25525,7 @@ UI.Toggle = QTab:CreateToggle({
         __HH.saveQC()
         if Value then
             JL.Warned = {}
-            notify("Chuỗi nhiệm vụ", "Đã bật. Đang CHẶN bán cá trong lúc chạy.")
+            notify("Chuỗi nhiệm vụ", "Đã bật. Cá nhiệm vụ sẽ được khóa trước khi bán.")
         end
     end
 })
@@ -25411,11 +25616,10 @@ QTab:CreateLabel({
     UpdateRate = 1,
 })
 QTab:CreateLabel({
-    Text = "Bảo vệ cá...",
+    Text = "Khóa cá...",
     Update = function()
         local learned = JL.Learned[QC.Chain]
-        return string.format("Chặn bán cá: %s (đã chặn %d lệnh) | Thao tác đã học: %d",
-            JL.Protect and "BẬT" or "tắt", JL.BlockedSells, learned and #learned or 0)
+        return string.format("Khóa cá: %d lần | Thao tác đã học: %d", JL.Locked, learned and #learned or 0)
     end,
     UpdateRate = 1,
 })
@@ -25469,6 +25673,19 @@ QTab:CreateButton({
     Callback = function()
         JL.Learned[QC.Chain] = nil
         notify("Chuỗi nhiệm vụ", "Đã xóa thao tác đã học")
+    end
+})
+
+QTab:CreateButton({
+    Name = "Kiểm tra khóa cá (F9 console)",
+    Callback = function()
+        print("=== KIỂM TRA KHÓA CÁ ===")
+        print("Chuỗi remote gần nhất:", tostring(JL.LastFavArg))
+        for _, e in ipairs(__HH.questFishToLock()) do
+            print("  cá:", e.Raw, "| data:", tostring(__HH.lockFromData(e.Raw)),
+                "| gui:", tostring(__HH.lockFromGui(e.Raw)), "| kết luận:", tostring(__HH.isLocked(e.Raw)))
+        end
+        notify("Khóa cá", "Đã in kết quả ra console (F9)")
     end
 })
 

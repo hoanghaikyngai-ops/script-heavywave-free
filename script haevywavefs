@@ -2,7 +2,7 @@ local ProtectionConfig = {
     HubName = "HOANGHAI"
 }
 -------------------------------------------------------------------------------
--- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇 1
+-- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇
 -------------------------------------------------------------------------------
 
 print(ProtectionConfig.HubName .. " Loaded Successfully!")
@@ -19838,10 +19838,13 @@ end
 return Library
 end)()
 
+local __HH = {}
+
 --------------------------------------------------------------------------------
 -- HOANGHAI application
 --------------------------------------------------------------------------------
 
+do -- HOANGHAI application scope
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -19923,14 +19926,14 @@ local Config = {
 local SAVE_FOLDER = "HOANGHAI"
 local SAVE_FILE = SAVE_FOLDER .. "/HeavyweighFishingConfig.json"
 
-local function SaveConfig()
+__HH.SaveConfig = function()
     pcall(function()
         if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
         writefile(SAVE_FILE, HttpService:JSONEncode(Config))
     end)
 end
 
-local function LoadConfig()
+__HH.LoadConfig = function()
     pcall(function()
         if isfile(SAVE_FILE) then
             local decoded = HttpService:JSONDecode(readfile(SAVE_FILE))
@@ -19943,7 +19946,7 @@ local function LoadConfig()
     end)
 end
 
-LoadConfig()
+__HH.LoadConfig()
 if type(Config.SkillOrder) ~= "table" then
     Config.SkillOrder = {"Z", "X", "C", "V"}
 else
@@ -19989,7 +19992,7 @@ task.spawn(function()
 end)
 ]]
 
-local function QueueAutoExecute()
+__HH.QueueAutoExecute = function()
     if not Config.AutoExecute or autoExecQueued or not queueTeleport then return end
     autoExecQueued = true
     pcall(function()
@@ -19998,18 +20001,18 @@ local function QueueAutoExecute()
 end
 
 if Config.AutoExecute then
-    QueueAutoExecute()
+    __HH.QueueAutoExecute()
 end
 
 pcall(function()
     LocalPlayer.OnTeleport:Connect(function()
         if Config.AutoExecute then
-            QueueAutoExecute()
+            __HH.QueueAutoExecute()
         end
     end)
 end)
 
-local function GetSavedCFrame()
+__HH.GetSavedCFrame = function()
     if type(Config.SavedPos) == "table" and #Config.SavedPos >= 3 then
         local ok, cf = pcall(CFrame.new, unpack(Config.SavedPos))
         if ok and cf then
@@ -20035,7 +20038,7 @@ local IslandFarmPositions = {
     ["Mystic Reef Isle"] = CFrame.new(-2561.58, 9.28, -1288.64, -0.07, -0.00, -1.00, 0.00, 1.00, -0.00, 1.00, -0.00, -0.07)
 }
 
-local function GetIslandFarmCFrame(islandKey)
+__HH.GetIslandFarmCFrame = function(islandKey)
     local key = islandKey or Config.SelectedFarmIsland or ""
     if IslandFarmPositions[key] then
         return IslandFarmPositions[key]
@@ -20056,7 +20059,7 @@ end
 
 local ModuleCache = {}
 
-local function GetModuleData(mod)
+__HH.GetModuleData = function(mod)
     if not mod or not mod:IsA("ModuleScript") then return nil end
     local cached = ModuleCache[mod]
     if cached ~= nil then
@@ -20137,7 +20140,7 @@ local MobileGui = MainGui:FindFirstChild("Mobile")
 local MobileFishingBtn = MobileGui and MobileGui:FindFirstChild("Fishing")
 local RhythmHitEvent = Events:FindFirstChild("RhythmHit")
 
-local function RefreshGuiCache()
+__HH.RefreshGuiCache = function()
     if not MainGui or not MainGui.Parent then
         local pg = LocalPlayer:FindFirstChild("PlayerGui")
         MainGui = pg and pg:FindFirstChild("MainGui")
@@ -20195,7 +20198,7 @@ end)
 
 local lastInfJumpTick = 0
 
-local function IsInsideOceanWater(hrp)
+__HH.IsInsideOceanWater = function(hrp)
     if not hrp then return false end
     local ocean = workspace:FindFirstChild("Ocean")
     if not ocean then return false end
@@ -20220,7 +20223,7 @@ UserInputService.JumpRequest:Connect(function()
     local hum = cachedHum or (char and char:FindFirstChildOfClass("Humanoid"))
     local hrp = cachedHrp or (char and char:FindFirstChild("HumanoidRootPart"))
     if not char or not hum or not hrp or hum.Health <= 0 then return end
-    if char:GetAttribute("Swimming") == true or hrp:FindFirstChildOfClass("BodyPosition") or IsInsideOceanWater(hrp) then
+    if char:GetAttribute("Swimming") == true or hrp:FindFirstChildOfClass("BodyPosition") or __HH.IsInsideOceanWater(hrp) then
         return
     end
     lastInfJumpTick = now
@@ -20230,7 +20233,7 @@ end)
 local flyConnection = nil
 local jumpStateConnection = nil
 
-local function startFly()
+__HH.startFly = function()
     local char = LocalPlayer.Character
     if not char then return end
 
@@ -20284,7 +20287,7 @@ local function startFly()
     end)
 end
 
-local function stopFly()
+__HH.stopFly = function()
     local char = LocalPlayer.Character
     if not char then return end
 
@@ -20309,12 +20312,12 @@ local function stopFly()
     end
 end
 
-local function IsAntiConfuseActive()
+__HH.IsAntiConfuseActive = function()
     return Config.AutoSkill or Config.AutoMiniGame or Config.AutoBoss or Config.AutoSecretBoss or Config.AutoFarmIsland
 end
 
-local function ApplyAntiConfuse(char)
-    if not IsAntiConfuseActive() then return end
+__HH.ApplyAntiConfuse = function(char)
+    if not __HH.IsAntiConfuseActive() then return end
     if char then
         if char:GetAttribute("Confused") == true then
             pcall(function() char:SetAttribute("Confused", false) end)
@@ -20345,31 +20348,31 @@ end
 
 local antiConfuseConns = {}
 
-local function BindCharacterAntiConfuse(char)
+__HH.BindCharacterAntiConfuse = function(char)
     for _, c in ipairs(antiConfuseConns) do
         pcall(function() c:Disconnect() end)
     end
     table.clear(antiConfuseConns)
     if not char then return end
     table.insert(antiConfuseConns, char:GetAttributeChangedSignal("Confused"):Connect(function()
-        if IsAntiConfuseActive() and char:GetAttribute("Confused") == true then
-            ApplyAntiConfuse(char)
+        if __HH.IsAntiConfuseActive() and char:GetAttribute("Confused") == true then
+            __HH.ApplyAntiConfuse(char)
         end
     end))
     table.insert(antiConfuseConns, char:GetAttributeChangedSignal("SkillLocked"):Connect(function()
-        if IsAntiConfuseActive() and char:GetAttribute("SkillLocked") == true then
-            ApplyAntiConfuse(char)
+        if __HH.IsAntiConfuseActive() and char:GetAttribute("SkillLocked") == true then
+            __HH.ApplyAntiConfuse(char)
         end
     end))
-    if IsAntiConfuseActive() then
-        ApplyAntiConfuse(char)
+    if __HH.IsAntiConfuseActive() then
+        __HH.ApplyAntiConfuse(char)
     end
 end
 
-local function StepAutoTPPos(char)
+__HH.StepAutoTPPos = function(char)
     if not Config.AutoTPPos then return end
     if Config.AutoBoss or Config.AutoSecretBoss then return end
-    local targetCF = GetSavedCFrame()
+    local targetCF = __HH.GetSavedCFrame()
     if not targetCF then return end
     local c = char or cachedChar or LocalPlayer.Character
     local hrp = (c and c:FindFirstChild("HumanoidRootPart")) or cachedHrp
@@ -20378,10 +20381,10 @@ local function StepAutoTPPos(char)
     end
 end
 
-local function StepAutoFarmIsland(char)
+__HH.StepAutoFarmIsland = function(char)
     if not Config.AutoFarmIsland then return end
     if Config.AutoBoss or Config.AutoSecretBoss then return end
-    local targetCF = GetIslandFarmCFrame()
+    local targetCF = __HH.GetIslandFarmCFrame()
     if not targetCF then return end
     local c = char or cachedChar or LocalPlayer.Character
     local hrp = (c and c:FindFirstChild("HumanoidRootPart")) or cachedHrp
@@ -20391,10 +20394,10 @@ local function StepAutoFarmIsland(char)
 end
 
 if cachedChar then
-    BindCharacterAntiConfuse(cachedChar)
+    __HH.BindCharacterAntiConfuse(cachedChar)
     task.spawn(function()
-        StepAutoTPPos(cachedChar)
-        StepAutoFarmIsland(cachedChar)
+        __HH.StepAutoTPPos(cachedChar)
+        __HH.StepAutoFarmIsland(cachedChar)
     end)
 end
 
@@ -20404,12 +20407,12 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     cachedHrp = newChar:WaitForChild("HumanoidRootPart", 5)
     cachedSkillsFolder = newChar:WaitForChild("Skills", 5)
     cachedStatsFolder = newChar:WaitForChild("Stats", 5)
-    BindCharacterAntiConfuse(newChar)
+    __HH.BindCharacterAntiConfuse(newChar)
     task.wait(0.3)
-    StepAutoTPPos(newChar)
-    StepAutoFarmIsland(newChar)
+    __HH.StepAutoTPPos(newChar)
+    __HH.StepAutoFarmIsland(newChar)
     if Config.FlyEnabled then
-        startFly()
+        __HH.startFly()
     end
 end)
 
@@ -20426,7 +20429,7 @@ do
     end
 end
 
-local function FindSkillNumberValue(char, key)
+__HH.FindSkillNumberValue = function(char, key)
     local skillsFolder = cachedSkillsFolder or (char and char:FindFirstChild("Skills"))
     if not skillsFolder then return nil, nil end
     for _, s in ipairs(skillsFolder:GetChildren()) do
@@ -20440,7 +20443,7 @@ local function FindSkillNumberValue(char, key)
     return nil, skillsFolder
 end
 
-local function FindSkillButton(key)
+__HH.FindSkillButton = function(key)
     if not SkillBtnFrame then return nil end
     local direct = SkillBtnFrame:FindFirstChild(key)
     if direct then return direct end
@@ -20459,7 +20462,7 @@ local function FindSkillButton(key)
     return nil
 end
 
-local function IsGameAllowingSkill(char)
+__HH.IsGameAllowingSkill = function(char)
     if not FishingGui or not FishingGui.Visible then
         wasMinigameVisible = false
         return false
@@ -20483,12 +20486,12 @@ local function IsGameAllowingSkill(char)
         return false
     end
 
-    if not IsAntiConfuseActive() then
+    if not __HH.IsAntiConfuseActive() then
         if char:GetAttribute("SkillLocked") or char:GetAttribute("Confused") then
             return false
         end
     else
-        ApplyAntiConfuse(char)
+        __HH.ApplyAntiConfuse(char)
     end
 
     local stats = cachedStatsFolder or char:FindFirstChild("Stats")
@@ -20526,7 +20529,7 @@ local function IsGameAllowingSkill(char)
     return true
 end
 
-local function IsSkillSlotAvailable(char, key)
+__HH.IsSkillSlotAvailable = function(char, key)
     if PlayerData then
         local rodVal = PlayerData:FindFirstChild("FishingRod")
         local rodInv = PlayerData:FindFirstChild("FishingRodInventory")
@@ -20537,16 +20540,16 @@ local function IsSkillSlotAvailable(char, key)
             return skVal.Value ~= ""
         end
     end
-    local btn = FindSkillButton(key)
+    local btn = __HH.FindSkillButton(key)
     if btn then
         return btn.Visible == true
     end
-    local s = FindSkillNumberValue(char, key)
+    local s = __HH.FindSkillNumberValue(char, key)
     return s ~= nil
 end
 
-local function IsSkillOnCooldown(char, key)
-    local btn = FindSkillButton(key)
+__HH.IsSkillOnCooldown = function(char, key)
+    local btn = __HH.FindSkillButton(key)
     if btn then
         local cd = btn:FindFirstChild("CD")
         if cd and cd.Visible then
@@ -20557,34 +20560,34 @@ local function IsSkillOnCooldown(char, key)
             end
         end
     end
-    local s = FindSkillNumberValue(char, key)
+    local s = __HH.FindSkillNumberValue(char, key)
     if s and (s.Value > 0 or (s:GetAttribute("UsingSkill") or 0) > 0) then
         return true
     end
     return false
 end
 
-local function IsSkillConfirmedUsed(char, key)
-    return IsSkillOnCooldown(char, key)
+__HH.IsSkillConfirmedUsed = function(char, key)
+    return __HH.IsSkillOnCooldown(char, key)
 end
 
-local function IsSkillKeyReady(char, key)
-    if not IsSkillSlotAvailable(char, key) then
+__HH.IsSkillKeyReady = function(char, key)
+    if not __HH.IsSkillSlotAvailable(char, key) then
         return false
     end
 
-    if IsSkillOnCooldown(char, key) then
+    if __HH.IsSkillOnCooldown(char, key) then
         return false
     end
 
-    local btn = FindSkillButton(key)
+    local btn = __HH.FindSkillButton(key)
     if btn then
         if not btn.Visible then
             return false
         end
         local lock = btn:FindFirstChild("Lock")
         if lock and lock.Visible then
-            if IsAntiConfuseActive() then
+            if __HH.IsAntiConfuseActive() then
                 lock.Visible = false
             else
                 return false
@@ -20592,7 +20595,7 @@ local function IsSkillKeyReady(char, key)
         end
     end
 
-    local s, skillsFolder = FindSkillNumberValue(char, key)
+    local s, skillsFolder = __HH.FindSkillNumberValue(char, key)
     if s then
         return true
     end
@@ -20619,7 +20622,7 @@ local isLockingBar = false
 local barPosConn = nil
 local boundBar = nil
 
-local function LockFishingBar()
+__HH.LockFishingBar = function()
     if isLockingBar then return end
     if not FishingGui or not FishingGui.Visible or not FishingBar then return end
     if not (Config.AutoReel or Config.AutoMiniGame or Config.AutoBoss or Config.AutoSecretBoss or Config.AutoFarmIsland) then return end
@@ -20644,7 +20647,7 @@ local function LockFishingBar()
     isLockingBar = false
 end
 
-local function BindFishingBarLock()
+__HH.BindFishingBarLock = function()
     if FishingBar and FishingBar ~= boundBar then
         if barPosConn then
             pcall(function() barPosConn:Disconnect() end)
@@ -20653,13 +20656,13 @@ local function BindFishingBarLock()
         boundBar = FishingBar
         barPosConn = FishingBar:GetPropertyChangedSignal("Position"):Connect(function()
             if not isLockingBar and FishingBar.Position.X.Scale ~= 0.5 then
-                LockFishingBar()
+                __HH.LockFishingBar()
             end
         end)
     end
 end
 
-BindFishingBarLock()
+__HH.BindFishingBarLock()
 
 local function TriggerGuiButton(btn)
     if not btn then return false end
@@ -20700,7 +20703,7 @@ end
 
 local getupval = (debug and debug.getupvalue) or getupvalue
 
-local function StepPhase2MiniGame()
+__HH.StepPhase2MiniGame = function()
     if not BossFightBar or not BossFightBar.Visible then
         if #phase2BarHistory > 0 then
             table.clear(phase2BarHistory)
@@ -20828,7 +20831,7 @@ local function StepPhase2MiniGame()
     end
 end
 
-local function StepRhythmMiniGame()
+__HH.StepRhythmMiniGame = function()
     if not RhythmGui or not RhythmGui.Visible then return end
     local now = os.clock()
     if now - lastRhythmScan < 0.025 then return end
@@ -20882,30 +20885,30 @@ end
 
 RunService.RenderStepped:Connect(function()
     if not FishingGui or not FishingGui.Visible then return end
-    BindFishingBarLock()
-    LockFishingBar()
+    __HH.BindFishingBarLock()
+    __HH.LockFishingBar()
     if Config.AutoMiniGame then
-        StepPhase2MiniGame()
+        __HH.StepPhase2MiniGame()
     end
 end)
 
 RunService.Stepped:Connect(function()
     if not FishingGui or not FishingGui.Visible then return end
-    BindFishingBarLock()
-    LockFishingBar()
+    __HH.BindFishingBarLock()
+    __HH.LockFishingBar()
 end)
 
 RunService.Heartbeat:Connect(function()
     if not FishingGui or not FishingGui.Visible then return end
-    BindFishingBarLock()
-    LockFishingBar()
+    __HH.BindFishingBarLock()
+    __HH.LockFishingBar()
     if Config.AutoMiniGame then
-        StepPhase2MiniGame()
-        StepRhythmMiniGame()
+        __HH.StepPhase2MiniGame()
+        __HH.StepRhythmMiniGame()
     end
 end)
 
-local function GetModelPart(obj)
+__HH.GetModelPart = function(obj)
     if not obj then return nil end
     if obj:IsA("BasePart") then return obj end
     if obj:IsA("Model") then
@@ -20917,7 +20920,7 @@ local function GetModelPart(obj)
     return obj:FindFirstChildWhichIsA("BasePart", true)
 end
 
-local function IsSecretBossEntity(obj)
+__HH.IsSecretBossEntity = function(obj)
     if not obj then return false end
     if obj:GetAttribute("Secret") == true or obj:GetAttribute("Rarity") == "Secret" then
         return true
@@ -20929,22 +20932,22 @@ local function IsSecretBossEntity(obj)
     end
     local inv = Info:FindFirstChild("Inventory")
     local mod = inv and inv:FindFirstChild(rawName)
-    local data = GetModuleData(mod)
+    local data = __HH.GetModuleData(mod)
     if data and (data.Secret == true or data.Rarity == "Secret" or (data.Boss == true and (tonumber(data.Chance) or 100) <= 1)) then
         return true
     end
     return false
 end
 
-local function FindBossTarget(wantSecret)
+__HH.FindBossTarget = function(wantSecret)
     local npcFolder = workspace:FindFirstChild("NPC")
     local bossFolder = npcFolder and npcFolder:FindFirstChild("Boss")
 
     if bossFolder then
         for _, boss in ipairs(bossFolder:GetChildren()) do
-            local part = GetModelPart(boss)
+            local part = __HH.GetModelPart(boss)
             if part then
-                local isSec = IsSecretBossEntity(boss)
+                local isSec = __HH.IsSecretBossEntity(boss)
                 if wantSecret and isSec then
                     return boss, part
                 elseif not wantSecret and not isSec then
@@ -20957,7 +20960,7 @@ local function FindBossTarget(wantSecret)
     if not wantSecret then
         local wsBoss = workspace:FindFirstChild("Boss") or workspace:FindFirstChild("BossZone")
         if wsBoss then
-            local part = GetModelPart(wsBoss)
+            local part = __HH.GetModelPart(wsBoss)
             if part then
                 return wsBoss, part
             end
@@ -20972,7 +20975,7 @@ local BossFarmPositions = {
     LongDiaoHai = CFrame.new(-2873.62, 32.17, 1337.38, -0.09, 0.00, -1.00, 0.00, 1.00, 0.00, 1.00, -0.00, -0.09)
 }
 
-local function GetBossFarmCFrame(wantSecret)
+__HH.GetBossFarmCFrame = function(wantSecret)
     return wantSecret and BossFarmPositions.LongDiaoHai or BossFarmPositions.Enzo
 end
 
@@ -20980,10 +20983,10 @@ local lastBossActionTick = 0
 local lastBossNotifyKey = ""
 local lastBossNotifyTick = 0
 
-local function NotifyBoss(title, content, key, cooldown)
+__HH.NotifyBoss = function(title, content, key, cooldown)
 end
 
-local function GetButtonLabelText(obj)
+__HH.GetButtonLabelText = function(obj)
     if not obj then return "" end
     if obj:IsA("TextButton") or obj:IsA("TextLabel") then
         if obj.Text and obj.Text ~= "" then
@@ -21043,7 +21046,7 @@ local function TriggerGuiButton(btn)
     return triggered
 end
 
-local function FindBossMenuFrame()
+__HH.FindBossMenuFrame = function()
     if not MainGui then return nil end
     local menu = MainGui:FindFirstChild("Menu")
     if not menu then return nil end
@@ -21067,7 +21070,7 @@ local function FindBossMenuFrame()
     return nil
 end
 
-local function GetBossRequirementSummary(bossFrame, bossName)
+__HH.GetBossRequirementSummary = function(bossFrame, bossName)
     local missing = {}
     local rodVal = PlayerData and PlayerData:FindFirstChild("FishingRod")
     local curRodName = rodVal and rodVal.Value or ""
@@ -21080,9 +21083,9 @@ local function GetBossRequirementSummary(bossFrame, bossName)
     local inv = Info:FindFirstChild("Inventory")
     if inv and bossName then
         local bossMod = inv:FindFirstChild(bossName)
-        local bossData = GetModuleData(bossMod)
+        local bossData = __HH.GetModuleData(bossMod)
         local rodMod = curRodName ~= "" and inv:FindFirstChild(curRodName) or nil
-        local rodData = GetModuleData(rodMod)
+        local rodData = __HH.GetModuleData(rodMod)
         if bossData and tonumber(bossData.Power) and rodData and tonumber(rodData.Power) then
             local rodBonus = stats and stats:FindFirstChild("RodPower") and tonumber(stats.RodPower.Value) or 0
             local fishBonus = stats and stats:FindFirstChild("FishPower") and tonumber(stats.FishPower.Value) or 0
@@ -21116,13 +21119,13 @@ end
 local bossSummoned = false
 local bossSummonTick = 0
 
-local function CloseBossMenuFrame(bossFrame)
+__HH.CloseBossMenuFrame = function(bossFrame)
     if not bossFrame or not bossFrame.Visible then return end
     local closed = false
     for _, desc in ipairs(bossFrame:GetDescendants()) do
         if desc:IsA("GuiButton") and desc.Visible then
             local bName = string.lower(desc.Name)
-            local bTxt = string.lower(GetButtonLabelText(desc))
+            local bTxt = string.lower(__HH.GetButtonLabelText(desc))
             local pName = desc.Parent and string.lower(desc.Parent.Name) or ""
             if bName == "close" or bTxt == "x" or pName == "close" then
                 if TriggerGuiButton(desc) then
@@ -21139,19 +21142,19 @@ local function CloseBossMenuFrame(bossFrame)
     end
 end
 
-local function CheckBossStatusOnToggle(wantSecret)
+__HH.CheckBossStatusOnToggle = function(wantSecret)
     bossSummoned = false
     bossSummonTick = 0
     local rodVal = PlayerData and PlayerData:FindFirstChild("FishingRod")
     if not rodVal or rodVal.Value == "" then
         return
     end
-    local bossObj = FindBossTarget(wantSecret)
+    local bossObj = __HH.FindBossTarget(wantSecret)
     if not bossObj then
         return
     end
     local hrp = cachedHrp or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"))
-    local targetCF = GetBossFarmCFrame(wantSecret)
+    local targetCF = __HH.GetBossFarmCFrame(wantSecret)
     if hrp and targetCF then
         hrp.CFrame = targetCF
     end
@@ -21163,7 +21166,7 @@ local function CheckBossStatusOnToggle(wantSecret)
     end
 end
 
-local function FireGuiSignal(btn)
+__HH.FireGuiSignal = function(btn)
     if not btn then return false end
     if not btn:IsA("GuiButton") then
         btn = btn:FindFirstChildWhichIsA("GuiButton", true) or (btn.Parent and btn.Parent:IsA("GuiButton") and btn.Parent) or nil
@@ -21200,7 +21203,7 @@ local function FireGuiSignal(btn)
     return triggered
 end
 
-local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
+__HH.ClickBossModeAndStart = function(bossFrame, bossName, mode, wantSecret)
     local targetMode = mode or "Normal"
 
     local selectContainer = bossFrame:FindFirstChild("Select", true)
@@ -21223,7 +21226,7 @@ local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
         for _, desc in ipairs(bossFrame:GetDescendants()) do
             if desc:IsA("GuiButton") then
                 local dName = string.lower(desc.Name)
-                local dText = string.lower(GetButtonLabelText(desc))
+                local dText = string.lower(__HH.GetButtonLabelText(desc))
                 if dName == string.lower(targetMode) or dText == string.lower(targetMode) then
                     modeBtn = desc
                     break
@@ -21233,7 +21236,7 @@ local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
     end
 
     if modeBtn then
-        FireGuiSignal(modeBtn)
+        __HH.FireGuiSignal(modeBtn)
         task.wait(0.15)
     end
 
@@ -21242,7 +21245,7 @@ local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
         for _, desc in ipairs(bossFrame:GetDescendants()) do
             if desc:IsA("GuiButton") then
                 local dName = string.lower(desc.Name)
-                local dText = string.lower(GetButtonLabelText(desc))
+                local dText = string.lower(__HH.GetButtonLabelText(desc))
                 if dName == "fight" or dText == "fight" or string.find(dName, "fight") or string.find(dText, "fight") then
                     fightBtn = desc
                     break
@@ -21252,7 +21255,7 @@ local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
     end
 
     if fightBtn then
-        FireGuiSignal(fightBtn)
+        __HH.FireGuiSignal(fightBtn)
     end
 
     local remotes = {}
@@ -21306,7 +21309,7 @@ local function ClickBossModeAndStart(bossFrame, bossName, mode, wantSecret)
         bossSummoned = true
         bossSummonTick = os.clock()
         if bossFrame then
-            CloseBossMenuFrame(bossFrame)
+            __HH.CloseBossMenuFrame(bossFrame)
         end
         return true
     end
@@ -21333,7 +21336,7 @@ end
 
 local trackingBossFight = false
 
-local function MonitorBossMinigame()
+__HH.MonitorBossMinigame = function()
     if trackingBossFight then return end
     local fishId = LocalPlayer:GetAttribute("FishID")
     local fishesFolder = workspace:FindFirstChild("Fishes")
@@ -21381,11 +21384,11 @@ local function MonitorBossMinigame()
     end)
 end
 
-local function StepAutoBoss(char, isMinigame)
+__HH.StepAutoBoss = function(char, isMinigame)
     if isMinigame then
         bossSummoned = true
         bossSummonTick = os.clock()
-        MonitorBossMinigame()
+        __HH.MonitorBossMinigame()
         return
     end
     local now = os.clock()
@@ -21402,8 +21405,8 @@ local function StepAutoBoss(char, isMinigame)
         return
     end
 
-    local bossObj, bossPart = FindBossTarget(wantSecret)
-    local targetCF = GetBossFarmCFrame(wantSecret)
+    local bossObj, bossPart = __HH.FindBossTarget(wantSecret)
+    local targetCF = __HH.GetBossFarmCFrame(wantSecret)
     if not bossObj and not targetCF then
         return
     end
@@ -21430,7 +21433,7 @@ local function StepAutoBoss(char, isMinigame)
         end)
     end
 
-    local bossFrame = FindBossMenuFrame()
+    local bossFrame = __HH.FindBossMenuFrame()
 
     if not bossSummoned then
         if bossPart and hrp then
@@ -21446,7 +21449,7 @@ local function StepAutoBoss(char, isMinigame)
         end
 
         if bossFrame and bossFrame.Visible then
-            ClickBossModeAndStart(bossFrame, bossName, Config.BossMode, wantSecret)
+            __HH.ClickBossModeAndStart(bossFrame, bossName, Config.BossMode, wantSecret)
         end
 
         if MainGui and not bossSummoned then
@@ -21477,7 +21480,7 @@ local function StepAutoBoss(char, isMinigame)
         end
     else
         if bossFrame and bossFrame.Visible then
-            CloseBossMenuFrame(bossFrame)
+            __HH.CloseBossMenuFrame(bossFrame)
         end
         if char and char:GetAttribute("Type") ~= "Fishing Rod" then
             pcall(function()
@@ -21497,7 +21500,7 @@ task.spawn(function()
     local wasMinigameActive = false
     while task.wait(0.08) do
         local now = os.clock()
-        RefreshGuiCache()
+        __HH.RefreshGuiCache()
         local isMinigame = FishingGui and FishingGui.Visible or false
         if wasMinigameActive and not isMinigame then
             lastMinigameEndTick = now
@@ -21531,7 +21534,7 @@ task.spawn(function()
                 for step = 1, orderCount do
                     local idx = ((skillSeqIndex - 1 + (step - 1)) % orderCount) + 1
                     local k = order[idx]
-                    if IsSkillKeyReady(char, k) then
+                    if __HH.IsSkillKeyReady(char, k) then
                         readyIdx = idx
                         break
                     end
@@ -21540,7 +21543,7 @@ task.spawn(function()
                 if readyIdx then
                     skillSeqIndex = readyIdx
                     local currentKey = order[skillSeqIndex]
-                    if IsGameAllowingSkill(char) and (now - lastSkillTry >= 0.25) then
+                    if __HH.IsGameAllowingSkill(char) and (now - lastSkillTry >= 0.25) then
                         lastSkillTry = os.clock()
                         pendingSkillKey = currentKey
                         pcall(function()
@@ -21551,7 +21554,7 @@ task.spawn(function()
                 else
                     for step = 1, orderCount do
                         local idx = ((skillSeqIndex - 1 + (step - 1)) % orderCount) + 1
-                        if IsSkillSlotAvailable(char, order[idx]) and not IsSkillOnCooldown(char, order[idx]) then
+                        if __HH.IsSkillSlotAvailable(char, order[idx]) and not __HH.IsSkillOnCooldown(char, order[idx]) then
                             skillSeqIndex = idx
                             break
                         end
@@ -21561,11 +21564,11 @@ task.spawn(function()
         end
 
         if Config.AutoBoss or Config.AutoSecretBoss then
-            StepAutoBoss(cachedChar, isMinigame)
+            __HH.StepAutoBoss(cachedChar, isMinigame)
         else
             if not isMinigame then
-                StepAutoTPPos(cachedChar)
-                StepAutoFarmIsland(cachedChar)
+                __HH.StepAutoTPPos(cachedChar)
+                __HH.StepAutoFarmIsland(cachedChar)
             end
             if activeCast and not isMinigame then
                 local minCastInterval = (Config.AutoCastMethod == "Instant") and 0.05 or math.clamp(tonumber(Config.CastDelay) or 1, 0, 10)
@@ -21639,7 +21642,7 @@ Events:WaitForChild("Charge").OnClientEvent:Connect(function(remote)
     end
 end)
 
-local function clearPlayerESP()
+__HH.clearPlayerESP = function()
     for _, player in ipairs(Players:GetPlayers()) do
         local char = player.Character
         if char then
@@ -21652,7 +21655,7 @@ local function clearPlayerESP()
     end
 end
 
-local function updateESP()
+__HH.updateESP = function()
     if not Config.ESPEnabled then return end
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -21698,7 +21701,7 @@ end
 task.spawn(function()
     while task.wait(0.4) do
         if Config.ESPEnabled then
-            updateESP()
+            __HH.updateESP()
         end
     end
 end)
@@ -21707,11 +21710,11 @@ local lastSellTime = 0
 local lastBuyBaitTime = 0
 local RemotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
 
-local function FindRemote(name)
+__HH.FindRemote = function(name)
     return Events:FindFirstChild(name) or (RemotesFolder and RemotesFolder:FindFirstChild(name))
 end
 
-local function FireOrInvokeEvent(ev, ...)
+__HH.FireOrInvokeEvent = function(ev, ...)
     if not ev then return false end
     local args = {...}
     local ok = pcall(function()
@@ -21724,12 +21727,12 @@ local function FireOrInvokeEvent(ev, ...)
     return ok
 end
 
-local function DoBuyBait(baitName, amount)
+__HH.DoBuyBait = function(baitName, amount)
     if not baitName or baitName == "" then return end
     local amt = math.max(1, math.floor(tonumber(amount) or 1))
-    local buyEvent = FindRemote("BuyBait") or FindRemote("Bait") or FindRemote("PurchaseBait") or FindRemote("BaitShop") or FindRemote("BuyItem")
+    local buyEvent = __HH.FindRemote("BuyBait") or __HH.FindRemote("Bait") or __HH.FindRemote("PurchaseBait") or __HH.FindRemote("BaitShop") or __HH.FindRemote("BuyItem")
     if buyEvent then
-        FireOrInvokeEvent(buyEvent, baitName, amt)
+        __HH.FireOrInvokeEvent(buyEvent, baitName, amt)
     else
         pcall(function()
             CraftBaitEvent:FireServer(baitName, amt)
@@ -21754,7 +21757,7 @@ task.spawn(function()
             local now = os.clock()
             if now - lastBuyBaitTime >= delaySec then
                 lastBuyBaitTime = now
-                DoBuyBait(Config.SelectedBuyBait, Config.BuyBaitAmount)
+                __HH.DoBuyBait(Config.SelectedBuyBait, Config.BuyBaitAmount)
             end
         end
         if Config.AutoCraftBait and Config.SelectedBait ~= "" then
@@ -21773,7 +21776,7 @@ end)
 local lastTicketQuestTime = 0
 local ChooseDialogueOption = Events:WaitForChild("ChooseDialogueOption", 9e9)
 
-local function HideTicketDialogueUI()
+__HH.HideTicketDialogueUI = function()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     local mg = pg and pg:FindFirstChild("MainGui")
     local menu = mg and mg:FindFirstChild("Menu")
@@ -21787,7 +21790,7 @@ local function HideTicketDialogueUI()
     end
 end
 
-local function GetTicketQuestGiverPart()
+__HH.GetTicketQuestGiverPart = function()
     local npcFolder = workspace:FindFirstChild("NPC")
     local funcFolder = npcFolder and npcFolder:FindFirstChild("Function")
     local giver = funcFolder and funcFolder:FindFirstChild("Ticket Quest Giver")
@@ -21795,7 +21798,7 @@ local function GetTicketQuestGiverPart()
     return workspace:WaitForChild("NPC", 9e9):WaitForChild("Function", 9e9):WaitForChild("Ticket Quest Giver", 9e9)
 end
 
-local function GetActiveTicketQuest()
+__HH.GetActiveTicketQuest = function()
     local pData = PlayerData
     if not pData then return nil end
     local qFolder = pData:FindFirstChild("Quest")
@@ -21814,7 +21817,7 @@ local function GetActiveTicketQuest()
     return nil
 end
 
-local function IsTicketQuestCompleted(tq)
+__HH.IsTicketQuestCompleted = function(tq)
     if not tq then return false end
     local infoMain = Info and Info:FindFirstChild("MainQuest")
     local questInfo = nil
@@ -21847,12 +21850,12 @@ local function IsTicketQuestCompleted(tq)
     return hasObjectives
 end
 
-local function GetTicketQuestState()
-    local tq = GetActiveTicketQuest()
+__HH.GetTicketQuestState = function()
+    local tq = __HH.GetActiveTicketQuest()
     if not tq then
         return "none"
     end
-    if IsTicketQuestCompleted(tq) then
+    if __HH.IsTicketQuestCompleted(tq) then
         return "completed"
     else
         return "in_progress"
@@ -21866,7 +21869,7 @@ do
     local lastTurnInAttempt = 0
     local lastRecordedCooldownText = ""
 
-    local function ParseCooldownSeconds(text)
+    __HH.ParseCooldownSeconds = function(text)
         if not text or text == "" then return nil end
         local lower = string.lower(text)
         if string.find(lower, "another quest in") or string.find(lower, "take another quest in") then
@@ -21883,18 +21886,18 @@ do
         return nil
     end
 
-    local function CheckAndSetCooldown(text)
+    __HH.CheckAndSetCooldown = function(text)
         if not text or text == "" then return end
         if text == lastRecordedCooldownText then return end
-        local sec = ParseCooldownSeconds(text)
+        local sec = __HH.ParseCooldownSeconds(text)
         if sec and sec > 0 and sec <= 3600 then
             lastRecordedCooldownText = text
             questCooldownUntil = os.clock() + sec
         end
     end
 
-    local function TurnInTicketQuest(giver)
-        local g = giver or GetTicketQuestGiverPart()
+    __HH.TurnInTicketQuest = function(giver)
+        local g = giver or __HH.GetTicketQuestGiverPart()
         if not g then return end
         local turnInArgs = {
             [1] = "Ticket Quest Giver",
@@ -21907,12 +21910,12 @@ do
         pcall(function()
             ChooseDialogueOption:FireServer(unpack(turnInArgs))
         end)
-        HideTicketDialogueUI()
+        __HH.HideTicketDialogueUI()
         lastTurnInAttempt = os.clock()
     end
 
-    local function AcceptTicketQuest(giver)
-        local g = giver or GetTicketQuestGiverPart()
+    __HH.AcceptTicketQuest = function(giver)
+        local g = giver or __HH.GetTicketQuestGiverPart()
         if not g then return end
         local acceptOption = (Config.TicketQuestMode == "Easy") and "EasyAcceptQuest" or "HardAcceptQuest"
         local acceptIndex = (Config.TicketQuestMode == "Easy") and 1 or 2
@@ -21928,7 +21931,7 @@ do
         pcall(function()
             ChooseDialogueOption:FireServer(unpack(acceptArgs))
         end)
-        HideTicketDialogueUI()
+        __HH.HideTicketDialogueUI()
         lastAcceptAttempt = os.clock()
     end
 
@@ -21938,23 +21941,23 @@ do
             return
         end
 
-        local giver = GetTicketQuestGiverPart()
+        local giver = __HH.GetTicketQuestGiverPart()
         if not giver then return end
 
-        local state = GetTicketQuestState()
+        local state = __HH.GetTicketQuestState()
         if state == "completed" then
             if now - lastTurnInAttempt >= 1.5 then
-                TurnInTicketQuest(giver)
+                __HH.TurnInTicketQuest(giver)
                 task.wait(0.5)
-                AcceptTicketQuest(giver)
+                __HH.AcceptTicketQuest(giver)
             end
         elseif state == "in_progress" then
             return
         else
             if now >= questCooldownUntil and (now - lastAcceptAttempt >= 2) then
-                TurnInTicketQuest(giver)
+                __HH.TurnInTicketQuest(giver)
                 task.wait(0.4)
-                AcceptTicketQuest(giver)
+                __HH.AcceptTicketQuest(giver)
             end
         end
     end
@@ -21964,9 +21967,9 @@ do
         if pg then
             pg.DescendantAdded:Connect(function(desc)
                 if desc:IsA("TextLabel") then
-                    CheckAndSetCooldown(desc.Text)
+                    __HH.CheckAndSetCooldown(desc.Text)
                     desc:GetPropertyChangedSignal("Text"):Connect(function()
-                        CheckAndSetCooldown(desc.Text)
+                        __HH.CheckAndSetCooldown(desc.Text)
                     end)
                 end
             end)
@@ -21980,11 +21983,11 @@ do
                     local args = {...}
                     for _, a in ipairs(args) do
                         if type(a) == "string" then
-                            CheckAndSetCooldown(a)
+                            __HH.CheckAndSetCooldown(a)
                         elseif type(a) == "table" then
                             for _, sub in pairs(a) do
                                 if type(sub) == "string" then
-                                    CheckAndSetCooldown(sub)
+                                    __HH.CheckAndSetCooldown(sub)
                                 end
                             end
                         end
@@ -22000,9 +22003,9 @@ do
             startDialogueEvent.OnClientEvent:Connect(function(dialogueName, npcModel, dialogueData)
                 if not Config.AutoTicketQuest then return end
                 if tostring(dialogueName) == "Ticket Quest Giver" or (npcModel and npcModel.Name == "Ticket Quest Giver") then
-                    HideTicketDialogueUI()
+                    __HH.HideTicketDialogueUI()
                     if type(dialogueData) == "table" and type(dialogueData[1]) == "string" then
-                        CheckAndSetCooldown(dialogueData[1])
+                        __HH.CheckAndSetCooldown(dialogueData[1])
                     end
                 end
             end)
@@ -22010,7 +22013,7 @@ do
     end)
 end
 
-local function GetZengTianguoPart()
+__HH.GetZengTianguoPart = function()
     local npcFolder = workspace:FindFirstChild("NPC")
     local funcFolder = npcFolder and npcFolder:FindFirstChild("Function")
     local giver = funcFolder and funcFolder:FindFirstChild("Zeng Tianguo")
@@ -22018,7 +22021,7 @@ local function GetZengTianguoPart()
     return workspace:WaitForChild("NPC", 9e9):WaitForChild("Function", 9e9):WaitForChild("Zeng Tianguo", 9e9)
 end
 
-local function GetActiveZengTianguoQuest()
+__HH.GetActiveZengTianguoQuest = function()
     local pData = PlayerData or (DataFolder and DataFolder:FindFirstChild(tostring(LocalPlayer.UserId)))
     if not pData then return nil end
     local qFolder = pData:FindFirstChild("Quest")
@@ -22058,7 +22061,7 @@ local function GetActiveZengTianguoQuest()
     return nil
 end
 
-local function IsZengTianguoQuestCompleted(zq)
+__HH.IsZengTianguoQuestCompleted = function(zq)
     if not zq then return false end
     local infoMain = Info and Info:FindFirstChild("MainQuest")
     local questInfo = nil
@@ -22120,7 +22123,7 @@ local function IsZengTianguoQuestCompleted(zq)
     return hasObjectives
 end
 
-local function HideZengTianguoDialogueUI()
+__HH.HideZengTianguoDialogueUI = function()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     local mg = pg and pg:FindFirstChild("MainGui")
     local menu = mg and mg:FindFirstChild("Menu")
@@ -22138,8 +22141,8 @@ local StepSmartZengTianguoQuest
 do
     local lastActionTick = 0
 
-    local function InteractZengTianguo(giver)
-        local g = giver or GetZengTianguoPart()
+    __HH.InteractZengTianguo = function(giver)
+        local g = giver or __HH.GetZengTianguoPart()
         if not g then return end
         local args1 = {
             [1] = "Zeng Tianguo",
@@ -22165,7 +22168,7 @@ do
         pcall(function()
             ChooseDialogueOption:FireServer(unpack(args2))
         end)
-        HideZengTianguoDialogueUI()
+        __HH.HideZengTianguoDialogueUI()
         lastActionTick = os.clock()
     end
 
@@ -22175,20 +22178,20 @@ do
             return
         end
 
-        local zq = GetActiveZengTianguoQuest()
+        local zq = __HH.GetActiveZengTianguoQuest()
         if zq then
-            if IsZengTianguoQuestCompleted(zq) then
-                local giver = GetZengTianguoPart()
+            if __HH.IsZengTianguoQuestCompleted(zq) then
+                local giver = __HH.GetZengTianguoPart()
                 if giver then
-                    InteractZengTianguo(giver)
+                    __HH.InteractZengTianguo(giver)
                 end
             end
             return
         end
 
-        local giver = GetZengTianguoPart()
+        local giver = __HH.GetZengTianguoPart()
         if giver then
-            InteractZengTianguo(giver)
+            __HH.InteractZengTianguo(giver)
         end
     end
 
@@ -22198,7 +22201,7 @@ do
             startDialogueEvent.OnClientEvent:Connect(function(dialogueName, npcModel)
                 if not Config.AutoZengTianguoQuest then return end
                 if tostring(dialogueName) == "Zeng Tianguo" or (npcModel and npcModel.Name == "Zeng Tianguo") then
-                    HideZengTianguoDialogueUI()
+                    __HH.HideZengTianguoDialogueUI()
                 end
             end)
         end
@@ -22208,13 +22211,13 @@ end
 
 local StepAutoEquipBestBait
 do
-    local function CleanBaitName(str)
+    __HH.CleanBaitName = function(str)
         if not str or str == "" then return "" end
         local clean = string.split(str, "|")[1] or str
         return string.gsub(clean, "^%s*(.-)%s*$", "%1")
     end
 
-    local function GetSafeItemCount(obj)
+    __HH.GetSafeItemCount = function(obj)
         if not obj then return 0 end
         local count = 0
         pcall(function()
@@ -22245,7 +22248,7 @@ do
         return count or 0
     end
 
-    local function GetBaitLuck(cleanName)
+    __HH.GetBaitLuck = function(cleanName)
         local infoBait = Info and Info:FindFirstChild("Bait")
         if not infoBait or not cleanName or cleanName == "" then return 0 end
         local mod = infoBait:FindFirstChild(cleanName)
@@ -22264,7 +22267,7 @@ do
         return luck
     end
 
-    local function GetBestOwnedBait()
+    __HH.GetBestOwnedBait = function()
         local pData = PlayerData
         if not pData then return nil end
         local infoBait = Info and Info:FindFirstChild("Bait")
@@ -22280,9 +22283,9 @@ do
         local function consider(rawName, count, inst, src)
             local c = tonumber(count) or 0
             if c > 0 then
-                local clean = CleanBaitName(rawName)
+                local clean = __HH.CleanBaitName(rawName)
                 if infoBait:FindFirstChild(clean) then
-                    local luck = GetBaitLuck(clean)
+                    local luck = __HH.GetBaitLuck(clean)
                     if luck > bestLuck then
                         bestLuck = luck
                         bestName = clean
@@ -22304,7 +22307,7 @@ do
         local baitFolder = pData:FindFirstChild("Bait")
         if baitFolder then
             for _, child in ipairs(baitFolder:GetChildren()) do
-                local cnt = GetSafeItemCount(child)
+                local cnt = __HH.GetSafeItemCount(child)
                 if cnt > 0 then
                     consider(child.Name, cnt, child, "Bait")
                 end
@@ -22314,9 +22317,9 @@ do
         local invFolder = pData:FindFirstChild("Inventory")
         if invFolder then
             for _, child in ipairs(invFolder:GetChildren()) do
-                local clean = CleanBaitName(child.Name)
+                local clean = __HH.CleanBaitName(child.Name)
                 if infoBait:FindFirstChild(clean) then
-                    local cnt = GetSafeItemCount(child)
+                    local cnt = __HH.GetSafeItemCount(child)
                     if cnt <= 0 then cnt = 1 end
                     consider(child.Name, cnt, child, "Inventory")
                 end
@@ -22327,7 +22330,7 @@ do
     end
 
     local BaitImageMap = {}
-    local function InitBaitImageMap()
+    __HH.InitBaitImageMap = function()
         local infoBait = Info and Info:FindFirstChild("Bait")
         if not infoBait then return end
         for _, bMod in ipairs(infoBait:GetChildren()) do
@@ -22345,9 +22348,9 @@ do
             end
         end
     end
-    InitBaitImageMap()
+    __HH.InitBaitImageMap()
 
-    local function GetSlot2Quantity()
+    __HH.GetSlot2Quantity = function()
         local qty = -1
         pcall(function()
             local mainGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("MainGui")
@@ -22380,9 +22383,9 @@ do
         return math.max(0, qty)
     end
 
-    local function GetEquippedBaitName()
+    __HH.GetEquippedBaitName = function()
         if not next(BaitImageMap) then
-            InitBaitImageMap()
+            __HH.InitBaitImageMap()
         end
         local foundName = nil
         pcall(function()
@@ -22409,7 +22412,7 @@ do
                 if not foundName then
                     for _, desc in ipairs(btn2:GetDescendants()) do
                         if desc:IsA("TextLabel") and desc.Text ~= "" then
-                            local cl = CleanBaitName(desc.Text)
+                            local cl = __HH.CleanBaitName(desc.Text)
                             if Info and Info:FindFirstChild("Bait") and Info.Bait:FindFirstChild(cl) then
                                 foundName = cl
                                 break
@@ -22417,7 +22420,7 @@ do
                         end
                         local attr = desc:GetAttribute("ItemName") or desc:GetAttribute("Bait")
                         if attr and tostring(attr) ~= "" then
-                            local cl = CleanBaitName(tostring(attr))
+                            local cl = __HH.CleanBaitName(tostring(attr))
                             if Info and Info:FindFirstChild("Bait") and Info.Bait:FindFirstChild(cl) then
                                 foundName = cl
                                 break
@@ -22444,7 +22447,7 @@ do
                     local q = slot2:FindFirstChild("Quantity")
                     local cnt = q and tonumber(q.Value) or 0
                     if vn and vn.Value ~= "" and cnt > 0 then
-                        local cl = CleanBaitName(vn.Value)
+                        local cl = __HH.CleanBaitName(vn.Value)
                         if Info and Info:FindFirstChild("Bait") and Info.Bait:FindFirstChild(cl) then
                             foundName = cl
                         end
@@ -22453,13 +22456,13 @@ do
                 if not foundName then
                     local bVal = PlayerData:FindFirstChild("EquippedBait") or PlayerData:FindFirstChild("CurrentBait")
                     if bVal and bVal:IsA("StringValue") and bVal.Value ~= "" then
-                        foundName = CleanBaitName(bVal.Value)
+                        foundName = __HH.CleanBaitName(bVal.Value)
                     end
                 end
                 if not foundName then
                     local attr = PlayerData:GetAttribute("EquippedBait") or PlayerData:GetAttribute("Bait")
                     if attr and tostring(attr) ~= "" then
-                        foundName = CleanBaitName(tostring(attr))
+                        foundName = __HH.CleanBaitName(tostring(attr))
                     end
                 end
             end)
@@ -22475,7 +22478,7 @@ do
         local now = os.clock()
         if not force and now - lastEquipTime < 2 then return end
 
-        local bestBait, bestRaw, bestLuck, bestCount = GetBestOwnedBait()
+        local bestBait, bestRaw, bestLuck, bestCount = __HH.GetBestOwnedBait()
         if not bestBait or bestCount <= 0 then
             if force then
                 pcall(function()
@@ -22489,8 +22492,8 @@ do
             return
         end
 
-        local curEquipped = GetEquippedBaitName()
-        local curQty = GetSlot2Quantity()
+        local curEquipped = __HH.GetEquippedBaitName()
+        local curQty = __HH.GetSlot2Quantity()
 
         if not force and curEquipped == bestBait and curQty > 0 then
             return
@@ -22510,8 +22513,8 @@ do
             end)
 
             task.delay(0.3, function()
-                local checkEq = GetEquippedBaitName()
-                local checkQ = GetSlot2Quantity()
+                local checkEq = __HH.GetEquippedBaitName()
+                local checkQ = __HH.GetSlot2Quantity()
                 if checkQ <= 0 and checkEq ~= bestBait then
                     pcall(function()
                         if ev:IsA("RemoteFunction") then
@@ -22554,13 +22557,13 @@ task.spawn(function()
     end
 end)
 
-local function GetBuyableBaits()
+__HH.GetBuyableBaits = function()
     local list = {}
     local seen = {}
     local baitFolder = Info:FindFirstChild("Bait")
     if baitFolder then
         for _, child in ipairs(baitFolder:GetChildren()) do
-            local data = GetModuleData(child)
+            local data = __HH.GetModuleData(child)
             if data and not data.Ingredient then
                 seen[child.Name] = true
                 table.insert(list, child.Name)
@@ -22571,7 +22574,7 @@ local function GetBuyableBaits()
     if itemFolder then
         for _, child in ipairs(itemFolder:GetChildren()) do
             if not seen[child.Name] then
-                local data = GetModuleData(child)
+                local data = __HH.GetModuleData(child)
                 if data and data.Type == "Bait" and not data.Ingredient then
                     seen[child.Name] = true
                     table.insert(list, child.Name)
@@ -22583,12 +22586,12 @@ local function GetBuyableBaits()
     return list
 end
 
-local function GetCraftableBaits()
+__HH.GetCraftableBaits = function()
     local list = {}
     local baitFolder = Info:FindFirstChild("Bait")
     if baitFolder then
         for _, child in ipairs(baitFolder:GetChildren()) do
-            local data = GetModuleData(child)
+            local data = __HH.GetModuleData(child)
             if data and data.Ingredient then
                 table.insert(list, child.Name)
             end
@@ -22598,12 +22601,12 @@ local function GetCraftableBaits()
     return list
 end
 
-local function GetCraftableRods()
+__HH.GetCraftableRods = function()
     local list = {}
     local invFolder = Info:FindFirstChild("Inventory")
     if invFolder then
         for _, child in ipairs(invFolder:GetChildren()) do
-            local data = GetModuleData(child)
+            local data = __HH.GetModuleData(child)
             if data and data.Ingredient and data.Type == "Fishing Rod" then
                 table.insert(list, child.Name)
             end
@@ -22647,7 +22650,7 @@ local CanonicalIslandPower = {
     ["Mystic Reef Isle"] = 100
 }
 
-local function GetCanonicalIslandRank(name)
+__HH.GetCanonicalIslandRank = function(name)
     if CanonicalIslandOrder[name] then
         return CanonicalIslandOrder[name]
     end
@@ -22661,7 +22664,7 @@ local function GetCanonicalIslandRank(name)
     return nil
 end
 
-local function GetCanonicalIslandPower(name)
+__HH.GetCanonicalIslandPower = function(name)
     if CanonicalIslandPower[name] then
         return CanonicalIslandPower[name]
     end
@@ -22675,7 +22678,7 @@ local function GetCanonicalIslandPower(name)
     return nil
 end
 
-local function GetIslandList()
+__HH.GetIslandList = function()
     local rawIslands = {}
     local seen = {}
     table.clear(IslandTargets)
@@ -22684,7 +22687,7 @@ local function GetIslandList()
     if not sp then return {} end
 
     local startPart = sp:FindFirstChild("Beginning Isle")
-    local startPos = startPart and GetModelPart(startPart) and GetModelPart(startPart).Position or Vector3.zero
+    local startPos = startPart and __HH.GetModelPart(startPart) and __HH.GetModelPart(startPart).Position or Vector3.zero
 
     local compassOrder = {}
     local compassPower = {}
@@ -22716,10 +22719,10 @@ local function GetIslandList()
     end
 
     for _, child in ipairs(sp:GetChildren()) do
-        local part = GetModelPart(child)
+        local part = __HH.GetModelPart(child)
         if part and not seen[child.Name] then
             seen[child.Name] = true
-            local rank = GetCanonicalIslandRank(child.Name)
+            local rank = __HH.GetCanonicalIslandRank(child.Name)
             local weight
             if rank then
                 weight = rank
@@ -22728,7 +22731,7 @@ local function GetIslandList()
             else
                 weight = 1e7 + (part.Position - startPos).Magnitude
             end
-            local pwr = compassPower[child.Name] or GetCanonicalIslandPower(child.Name)
+            local pwr = compassPower[child.Name] or __HH.GetCanonicalIslandPower(child.Name)
             table.insert(rawIslands, {
                 name = child.Name,
                 part = part,
@@ -22756,10 +22759,10 @@ local function GetIslandList()
     return list
 end
 
-local function TeleportToIsland(islandName)
+__HH.TeleportToIsland = function(islandName)
     if not islandName or islandName == "" then return end
     if not IslandTargets[islandName] then
-        GetIslandList()
+        __HH.GetIslandList()
     end
     local targetPart = IslandTargets[islandName]
     local char = LocalPlayer.Character
@@ -22769,10 +22772,10 @@ local function TeleportToIsland(islandName)
     end
 end
 
-local function TeleportUnderIslandWater(islandName)
+__HH.TeleportUnderIslandWater = function(islandName)
     if not islandName or islandName == "" then return end
     if not IslandTargets[islandName] then
-        GetIslandList()
+        __HH.GetIslandList()
     end
     local targetPart = IslandTargets[islandName]
     if not targetPart then return end
@@ -22796,7 +22799,7 @@ end
 
 local NPCTargets = {}
 
-local function GetNPCList()
+__HH.GetNPCList = function()
     local list = {}
     local seen = {}
     table.clear(NPCTargets)
@@ -22825,7 +22828,7 @@ local function GetNPCList()
                 if name ~= "" and name ~= "Lamp" and name ~= "Boss" and name ~= "God" then
                     local wsFolder = workspace:FindFirstChild(folderName)
                     local liveModel = wsFolder and wsFolder:FindFirstChild(name)
-                    local part = liveModel and GetModelPart(liveModel)
+                    local part = liveModel and __HH.GetModelPart(liveModel)
                     addNPC(name, part)
                 elseif name == "Boss" or name == "God" then
                     for _, b in ipairs(child:GetChildren()) do
@@ -22834,7 +22837,7 @@ local function GetNPCList()
                             local wsFolder = workspace:FindFirstChild(folderName)
                             local wsSub = wsFolder and wsFolder:FindFirstChild(name)
                             local liveSub = wsSub and wsSub:FindFirstChild(bName)
-                            local part = liveSub and GetModelPart(liveSub)
+                            local part = liveSub and __HH.GetModelPart(liveSub)
                             addNPC(bName, part)
                         end
                     end
@@ -22849,7 +22852,7 @@ local function GetNPCList()
             local name = tostring(child.Name)
             if name ~= "" and name ~= "Lamp" and name ~= "God" then
                 local liveModel = workspace:FindFirstChild("God") and workspace.God:FindFirstChild(name)
-                local part = liveModel and GetModelPart(liveModel)
+                local part = liveModel and __HH.GetModelPart(liveModel)
                 addNPC(name, part)
             end
         end
@@ -22893,7 +22896,7 @@ local function GetNPCList()
     return list
 end
 
-local function TeleportToNPC(npcName)
+__HH.TeleportToNPC = function(npcName)
     if not npcName or npcName == "" then return end
     local lowerNpc = string.lower(string.gsub(tostring(npcName), "%s+", ""))
     local targetPart = nil
@@ -22904,7 +22907,7 @@ local function TeleportToNPC(npcName)
             for _, child in ipairs(godFolder:GetChildren()) do
                 local cLower = string.lower(string.gsub(tostring(child.Name), "%s+", ""))
                 if cLower == lowerNpc then
-                    targetPart = GetModelPart(child)
+                    targetPart = __HH.GetModelPart(child)
                     if targetPart and targetPart:IsDescendantOf(workspace) then
                         break
                     end
@@ -22915,7 +22918,7 @@ local function TeleportToNPC(npcName)
             for _, child in ipairs(workspace:GetChildren()) do
                 local cLower = string.lower(string.gsub(tostring(child.Name), "%s+", ""))
                 if cLower == lowerNpc then
-                    local p = GetModelPart(child)
+                    local p = __HH.GetModelPart(child)
                     if p and p:IsDescendantOf(workspace) then
                         targetPart = p
                         break
@@ -22924,7 +22927,7 @@ local function TeleportToNPC(npcName)
             end
         end
     elseif string.find(lowerNpc, "longdiaohai") or lowerNpc == "enzo" then
-        local _, bossPart = FindBossTarget(string.find(lowerNpc, "longdiaohai") ~= nil)
+        local _, bossPart = __HH.FindBossTarget(string.find(lowerNpc, "longdiaohai") ~= nil)
         if bossPart and bossPart:IsDescendantOf(workspace) then
             targetPart = bossPart
         end
@@ -22937,7 +22940,7 @@ local function TeleportToNPC(npcName)
             if wsFolder then
                 for _, desc in ipairs(wsFolder:GetDescendants()) do
                     if (desc:IsA("Model") or desc:IsA("BasePart")) and not desc:IsA("Folder") and (desc.Name == npcName or desc:GetAttribute("Name") == npcName) and desc.Name ~= "God" then
-                        local p = GetModelPart(desc)
+                        local p = __HH.GetModelPart(desc)
                         if p and p:IsDescendantOf(workspace) then
                             table.insert(candidates, { folder = folderName, part = p })
                         end
@@ -22949,7 +22952,7 @@ local function TeleportToNPC(npcName)
     if not targetPart and #candidates == 0 then
         local directWs = workspace:FindFirstChild(npcName)
         if directWs then
-            local p = GetModelPart(directWs)
+            local p = __HH.GetModelPart(directWs)
             if p and p:IsDescendantOf(workspace) then
                 targetPart = p
             end
@@ -22958,7 +22961,7 @@ local function TeleportToNPC(npcName)
     if #candidates > 0 then
         if (npcName == "Maoshan" or npcName == "Taoist") and #candidates > 1 then
             local daShixiong = workspace:FindFirstChild("Da Shixiong", true)
-            local dsPart = daShixiong and GetModelPart(daShixiong)
+            local dsPart = daShixiong and __HH.GetModelPart(daShixiong)
             for _, cand in ipairs(candidates) do
                 if cand.folder == "NPC" then
                     targetPart = cand.part
@@ -22997,7 +23000,7 @@ local function TeleportToNPC(npcName)
     end
 end
 
-local function GetPlayerList()
+__HH.GetPlayerList = function()
     local list = {}
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
@@ -23010,7 +23013,7 @@ local function GetPlayerList()
     return list
 end
 
-local function TeleportToPlayer(targetName)
+__HH.TeleportToPlayer = function(targetName)
     if not targetName or targetName == "" then return end
     local targetPlr = Players:FindFirstChild(targetName)
     if not targetPlr then
@@ -23061,7 +23064,7 @@ local KnownCodes = {
     "23KActives"
 }
 
-local function RedeemAllCodes()
+__HH.RedeemAllCodes = function()
     task.spawn(function()
         local codeSet = {}
         for _, c in ipairs(KnownCodes) do
@@ -23099,7 +23102,7 @@ local function RedeemAllCodes()
     end)
 end
 
-local function OpenMenuFrameRemotely(frameName)
+__HH.OpenMenuFrameRemotely = function(frameName)
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     local mg = (pg and pg:FindFirstChild("MainGui")) or MainGui
     local menu = mg and mg:FindFirstChild("Menu")
@@ -23165,7 +23168,7 @@ end
 
 local applyingLighting = false
 
-local function ApplyLightingSettings()
+__HH.ApplyLightingSettings = function()
     if applyingLighting then return end
     applyingLighting = true
     pcall(function()
@@ -23198,7 +23201,7 @@ local function ApplyLightingSettings()
     applyingLighting = false
 end
 
-local function RestoreFullBright()
+__HH.RestoreFullBright = function()
     applyingLighting = true
     pcall(function()
         Lighting.Brightness = OriginalLighting.Brightness
@@ -23210,7 +23213,7 @@ local function RestoreFullBright()
     applyingLighting = false
 end
 
-local function RestoreNoFog()
+__HH.RestoreNoFog = function()
     applyingLighting = true
     pcall(function()
         Lighting.FogStart = OriginalLighting.FogStart
@@ -23228,11 +23231,11 @@ end
 
 Lighting.Changed:Connect(function()
     if Config.FullBright or Config.NoFog then
-        ApplyLightingSettings()
+        __HH.ApplyLightingSettings()
     end
 end)
 
-ApplyLightingSettings()
+__HH.ApplyLightingSettings()
 
 -- Native window from the supplied UI library. The existing JSON config
 -- remains authoritative; the library's example/config-manager is not loaded.
@@ -23374,7 +23377,7 @@ local Tabs = {
 local FlyToggleObj, NoclipToggleObj
 
 local lastFlyToggleTime = 0
-local function toggleFly()
+__HH.toggleFly = function()
     local now = tick()
     if now - lastFlyToggleTime < 0.25 then return end
     lastFlyToggleTime = now
@@ -23382,13 +23385,13 @@ local function toggleFly()
         FlyToggleObj:Set(not Config.FlyEnabled)
     else
         Config.FlyEnabled = not Config.FlyEnabled
-        SaveConfig()
-        if Config.FlyEnabled then startFly() else stopFly() end
+        __HH.SaveConfig()
+        if Config.FlyEnabled then __HH.startFly() else __HH.stopFly() end
     end
 end
 
 local lastNoclipToggleTime = 0
-local function toggleNoclip()
+__HH.toggleNoclip = function()
     local now = tick()
     if now - lastNoclipToggleTime < 0.25 then return end
     lastNoclipToggleTime = now
@@ -23396,7 +23399,7 @@ local function toggleNoclip()
         NoclipToggleObj:Set(not Config.NoclipEnabled)
     else
         Config.NoclipEnabled = not Config.NoclipEnabled
-        SaveConfig()
+        __HH.SaveConfig()
     end
 end
 
@@ -23411,7 +23414,7 @@ Tabs.Main:CreateToggle({
         if not Value then
             lastTicketQuestTime = 0
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23424,7 +23427,7 @@ Tabs.Main:CreateDropdown({
     AllowNone = false,
     Callback = function(Value)
         Config.TicketQuestMode = Value or "Hard"
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23436,14 +23439,14 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoZengTianguoQuest,
     Callback = function(Value)
         Config.AutoZengTianguoQuest = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
 Tabs.Main:CreateSection("Auto Farm Fish")
 
 do
-    local farmIslandList = GetIslandList()
+    local farmIslandList = __HH.GetIslandList()
     if (Config.SelectedFarmIsland == "" or not table.find(farmIslandList, Config.SelectedFarmIsland)) and #farmIslandList > 0 then
         Config.SelectedFarmIsland = farmIslandList[1]
     end
@@ -23457,9 +23460,9 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedFarmIsland = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
             if Config.AutoFarmIsland then
-                StepAutoFarmIsland(LocalPlayer.Character)
+                __HH.StepAutoFarmIsland(LocalPlayer.Character)
             end
         end
     })
@@ -23471,11 +23474,11 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoFarmIsland,
     Callback = function(Value)
         Config.AutoFarmIsland = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            StepAutoFarmIsland(LocalPlayer.Character)
+            __HH.StepAutoFarmIsland(LocalPlayer.Character)
             if LocalPlayer.Character then
-                ApplyAntiConfuse(LocalPlayer.Character)
+                __HH.ApplyAntiConfuse(LocalPlayer.Character)
             end
         end
     end
@@ -23487,9 +23490,9 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoExecute,
     Callback = function(Value)
         Config.AutoExecute = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            QueueAutoExecute()
+            __HH.QueueAutoExecute()
         end
     end
 })
@@ -23502,7 +23505,7 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoCast,
     Callback = function(Value)
         Config.AutoCast = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23515,7 +23518,7 @@ Tabs.Main:CreateDropdown({
     AllowNone = false,
     Callback = function(Value)
         Config.AutoCastMethod = Value or "Instant"
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23527,7 +23530,7 @@ Tabs.Main:CreateSlider({
     Increment = 0.1,
     Callback = function(Value)
         Config.CastDelay = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23537,7 +23540,7 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoReel,
     Callback = function(Value)
         Config.AutoReel = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23552,7 +23555,7 @@ Tabs.Main:CreateToggle({
                 StepAutoEquipBestBait(true)
             end)
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23566,9 +23569,9 @@ Tabs.Main:CreateToggle({
     Callback = function(Value)
         Config.AutoSkill = Value
         if Value and LocalPlayer.Character then
-            ApplyAntiConfuse(LocalPlayer.Character)
+            __HH.ApplyAntiConfuse(LocalPlayer.Character)
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23576,7 +23579,7 @@ do
     local allSkillKeys = {"Z", "X", "C", "V"}
     local SkillDropdown
 
-    local function OrderedSkillOptions()
+    __HH.OrderedSkillOptions = function()
         local options = table.clone(Config.SkillOrder)
         for _, key in ipairs(allSkillKeys) do
             if not table.find(options, key) then
@@ -23589,7 +23592,7 @@ do
     SkillDropdown = Tabs.Main:CreateDropdown({
         Flag = "SelectSkillDropdown",
         Name = "Select Skill",
-        Options = OrderedSkillOptions(),
+        Options = __HH.OrderedSkillOptions(),
         CurrentOption = table.clone(Config.SkillOrder),
         MultipleOptions = true,
         Callback = function(Value)
@@ -23610,9 +23613,9 @@ do
             end
             if SkillDropdown then
                 -- keepSelection, silent: avoid recursively invoking Callback.
-                SkillDropdown:Refresh(OrderedSkillOptions(), true, true)
+                SkillDropdown:Refresh(__HH.OrderedSkillOptions(), true, true)
             end
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -23634,7 +23637,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.BossMode = Value or "Normal"
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -23645,10 +23648,10 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoBoss,
     Callback = function(Value)
         Config.AutoBoss = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
             task.spawn(function()
-                CheckBossStatusOnToggle(false)
+                __HH.CheckBossStatusOnToggle(false)
             end)
         end
     end
@@ -23660,10 +23663,10 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoSecretBoss,
     Callback = function(Value)
         Config.AutoSecretBoss = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
             task.spawn(function()
-                CheckBossStatusOnToggle(true)
+                __HH.CheckBossStatusOnToggle(true)
             end)
         end
     end
@@ -23676,9 +23679,9 @@ Tabs.Main:CreateToggle({
     Callback = function(Value)
         Config.AutoMiniGame = Value
         if Value and LocalPlayer.Character then
-            ApplyAntiConfuse(LocalPlayer.Character)
+            __HH.ApplyAntiConfuse(LocalPlayer.Character)
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23691,7 +23694,7 @@ Tabs.Main:CreateButton({
         local hrp = (char and char:FindFirstChild("HumanoidRootPart")) or cachedHrp
         if hrp then
             Config.SavedPos = {hrp.CFrame:GetComponents()}
-            SaveConfig()
+            __HH.SaveConfig()
             pcall(function()
                 Library:Notify({
                     Title = "Position",
@@ -23709,9 +23712,9 @@ Tabs.Main:CreateToggle({
     CurrentValue = Config.AutoTPPos,
     Callback = function(Value)
         Config.AutoTPPos = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            StepAutoTPPos(LocalPlayer.Character)
+            __HH.StepAutoTPPos(LocalPlayer.Character)
         end
     end
 })
@@ -23720,7 +23723,7 @@ Tabs.Main:CreateButton({
     Name = "Delete Position",
     Callback = function()
         Config.SavedPos = false
-        SaveConfig()
+        __HH.SaveConfig()
         pcall(function()
             Library:Notify({
                 Title = "Position",
@@ -23739,7 +23742,7 @@ Tabs.Player:CreateToggle({
     CurrentValue = Config.LoopSpeedEnabled,
     Callback = function(Value)
         Config.LoopSpeedEnabled = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23751,7 +23754,7 @@ Tabs.Player:CreateSlider({
     Increment = 1,
     Callback = function(Value)
         Config.WalkSpeed = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23761,11 +23764,11 @@ FlyToggleObj = Tabs.Player:CreateToggle({
     CurrentValue = Config.FlyEnabled,
     Callback = function(Value)
         Config.FlyEnabled = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            startFly()
+            __HH.startFly()
         else
-            stopFly()
+            __HH.stopFly()
         end
     end
 })
@@ -23778,7 +23781,7 @@ Tabs.Player:CreateSlider({
     Increment = 0.1,
     Callback = function(Value)
         Config.FlySpeed = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23788,7 +23791,7 @@ NoclipToggleObj = Tabs.Player:CreateToggle({
     CurrentValue = Config.NoclipEnabled,
     Callback = function(Value)
         Config.NoclipEnabled = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23798,14 +23801,14 @@ Tabs.Player:CreateToggle({
     CurrentValue = Config.InfJumpEnabled,
     Callback = function(Value)
         Config.InfJumpEnabled = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
 Tabs.Teleport:CreateSection("Island")
 
 do
-    local islandList = GetIslandList()
+    local islandList = __HH.GetIslandList()
     if (Config.SelectedIsland == "" or not table.find(islandList, Config.SelectedIsland)) and #islandList > 0 then
         Config.SelectedIsland = islandList[1]
     end
@@ -23819,7 +23822,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedIsland = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -23827,14 +23830,14 @@ end
 Tabs.Teleport:CreateButton({
     Name = "Teleport To Island",
     Callback = function()
-        TeleportToIsland(Config.SelectedIsland)
+        __HH.TeleportToIsland(Config.SelectedIsland)
     end
 })
 
 Tabs.Teleport:CreateSection("NPC")
 
 do
-    local npcList = GetNPCList()
+    local npcList = __HH.GetNPCList()
     if (Config.SelectedNPC == "" or not table.find(npcList, Config.SelectedNPC)) and #npcList > 0 then
         Config.SelectedNPC = npcList[1]
     end
@@ -23848,7 +23851,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedNPC = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 
@@ -23856,7 +23859,7 @@ do
         Name = "Teleport To NPC",
         Callback = function()
             local chosen = (NPCDropdown and NPCDropdown:Get()) or Config.SelectedNPC
-            TeleportToNPC(chosen)
+            __HH.TeleportToNPC(chosen)
         end
     })
 end
@@ -23864,7 +23867,7 @@ end
 Tabs.Teleport:CreateSection("Player")
 
 do
-    local playerList = GetPlayerList()
+    local playerList = __HH.GetPlayerList()
     if #playerList == 0 then
         playerList = {"None"}
     end
@@ -23881,12 +23884,12 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedPlayer = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 
-    local function RefreshDropdownPlayers()
-        local updated = GetPlayerList()
+    __HH.RefreshDropdownPlayers = function()
+        local updated = __HH.GetPlayerList()
         if #updated == 0 then
             updated = {"None"}
         end
@@ -23900,12 +23903,12 @@ do
 
     Players.PlayerAdded:Connect(function()
         task.wait(0.5)
-        RefreshDropdownPlayers()
+        __HH.RefreshDropdownPlayers()
     end)
 
     Players.PlayerRemoving:Connect(function()
         task.wait(0.5)
-        RefreshDropdownPlayers()
+        __HH.RefreshDropdownPlayers()
     end)
 
     Tabs.Teleport:CreateButton({
@@ -23913,7 +23916,7 @@ do
         Callback = function()
             local chosen = (PlayerDropdown and PlayerDropdown:Get()) or Config.SelectedPlayer
             if chosen and chosen ~= "None" then
-                TeleportToPlayer(chosen)
+                __HH.TeleportToPlayer(chosen)
             end
         end
     })
@@ -23930,7 +23933,7 @@ Tabs.Shop:CreateToggle({
         if not Value then
             lastSellTime = 0
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23943,7 +23946,7 @@ Tabs.Shop:CreateInput({
     Placeholder = "1",
     Callback = function(Value)
         Config.SellDelay = math.clamp(math.floor(tonumber(Value) or 1), 1, 60)
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -23964,7 +23967,7 @@ Tabs.Shop:CreateButton({
 Tabs.Shop:CreateSection("Buy Bait")
 
 do
-    local buyBaitList = GetBuyableBaits()
+    local buyBaitList = __HH.GetBuyableBaits()
     if Config.SelectedBuyBait == "" and #buyBaitList > 0 then
         Config.SelectedBuyBait = buyBaitList[1]
     end
@@ -23978,7 +23981,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedBuyBait = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -23992,7 +23995,7 @@ Tabs.Shop:CreateInput({
     Placeholder = "1",
     Callback = function(Value)
         Config.BuyBaitAmount = math.max(1, math.floor(tonumber(Value) or 1))
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24005,7 +24008,7 @@ Tabs.Shop:CreateInput({
     Placeholder = "1",
     Callback = function(Value)
         Config.BuyBaitDelay = math.max(1, math.floor(tonumber(Value) or 1))
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24018,21 +24021,21 @@ Tabs.Shop:CreateToggle({
         if not Value then
             lastBuyBaitTime = 0
         end
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
 Tabs.Shop:CreateButton({
     Name = "Buy Bait",
     Callback = function()
-        DoBuyBait(Config.SelectedBuyBait, Config.BuyBaitAmount)
+        __HH.DoBuyBait(Config.SelectedBuyBait, Config.BuyBaitAmount)
     end
 })
 
 Tabs.Shop:CreateSection("Craft Bait")
 
 do
-    local baitList = GetCraftableBaits()
+    local baitList = __HH.GetCraftableBaits()
     if Config.SelectedBait == "" and #baitList > 0 then
         Config.SelectedBait = baitList[1]
     end
@@ -24046,7 +24049,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedBait = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -24060,7 +24063,7 @@ Tabs.Shop:CreateInput({
     Placeholder = "1",
     Callback = function(Value)
         Config.BaitAmount = math.max(1, math.floor(tonumber(Value) or 1))
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24070,7 +24073,7 @@ Tabs.Shop:CreateToggle({
     CurrentValue = Config.AutoCraftBait,
     Callback = function(Value)
         Config.AutoCraftBait = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24086,7 +24089,7 @@ Tabs.Shop:CreateButton({
 Tabs.Shop:CreateSection("Craft Rod")
 
 do
-    local rodList = GetCraftableRods()
+    local rodList = __HH.GetCraftableRods()
     if Config.SelectedRod == "" and #rodList > 0 then
         Config.SelectedRod = rodList[1]
     end
@@ -24100,7 +24103,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             Config.SelectedRod = Value or ""
-            SaveConfig()
+            __HH.SaveConfig()
         end
     })
 end
@@ -24111,7 +24114,7 @@ Tabs.Shop:CreateToggle({
     CurrentValue = Config.AutoCraftRod,
     Callback = function(Value)
         Config.AutoCraftRod = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24130,9 +24133,9 @@ Tabs.ESP:CreateToggle({
     CurrentValue = Config.ESPEnabled,
     Callback = function(Value)
         Config.ESPEnabled = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if not Value then
-            clearPlayerESP()
+            __HH.clearPlayerESP()
         end
     end
 })
@@ -24145,7 +24148,7 @@ Tabs.Misc:CreateToggle({
     CurrentValue = Config.AntiAFK,
     Callback = function(Value)
         Config.AntiAFK = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24155,13 +24158,13 @@ Tabs.Misc:CreateToggle({
     CurrentValue = Config.FullBright,
     Callback = function(Value)
         Config.FullBright = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            ApplyLightingSettings()
+            __HH.ApplyLightingSettings()
         else
-            RestoreFullBright()
+            __HH.RestoreFullBright()
             if Config.NoFog then
-                ApplyLightingSettings()
+                __HH.ApplyLightingSettings()
             end
         end
     end
@@ -24173,13 +24176,13 @@ Tabs.Misc:CreateToggle({
     CurrentValue = Config.NoFog,
     Callback = function(Value)
         Config.NoFog = Value
-        SaveConfig()
+        __HH.SaveConfig()
         if Value then
-            ApplyLightingSettings()
+            __HH.ApplyLightingSettings()
         else
-            RestoreNoFog()
+            __HH.RestoreNoFog()
             if Config.FullBright then
-                ApplyLightingSettings()
+                __HH.ApplyLightingSettings()
             end
         end
     end
@@ -24190,7 +24193,7 @@ Tabs.Misc:CreateSection("Codes")
 Tabs.Misc:CreateButton({
     Name = "Redeem All Codes",
     Callback = function()
-        RedeemAllCodes()
+        __HH.RedeemAllCodes()
     end
 })
 
@@ -24199,7 +24202,7 @@ Tabs.Misc:CreateSection("Remote Menus")
 Tabs.Misc:CreateButton({
     Name = "Open Skill Upgrade",
     Callback = function()
-        local state = OpenMenuFrameRemotely("SkillUpgrade")
+        local state = __HH.OpenMenuFrameRemotely("SkillUpgrade")
         Library:Notify({
             Title = "Remote UI",
             Content = state and "Opened Skill Upgrade" or "Closed Skill Upgrade",
@@ -24211,7 +24214,7 @@ Tabs.Misc:CreateButton({
 Tabs.Misc:CreateButton({
     Name = "Open Learn Skill",
     Callback = function()
-        local state = OpenMenuFrameRemotely("LearnSkill")
+        local state = __HH.OpenMenuFrameRemotely("LearnSkill")
         Library:Notify({
             Title = "Remote UI",
             Content = state and "Opened Learn Skill" or "Closed Learn Skill",
@@ -24223,7 +24226,7 @@ Tabs.Misc:CreateButton({
 Tabs.Misc:CreateButton({
     Name = "Open Exchange UI",
     Callback = function()
-        local state = OpenMenuFrameRemotely("Exchange")
+        local state = __HH.OpenMenuFrameRemotely("Exchange")
         Library:Notify({
             Title = "Remote UI",
             Content = state and "Opened Item Exchange" or "Closed Item Exchange",
@@ -24235,7 +24238,7 @@ Tabs.Misc:CreateButton({
 Tabs.Misc:CreateButton({
     Name = "Open Trait",
     Callback = function()
-        local state = OpenMenuFrameRemotely("Trait")
+        local state = __HH.OpenMenuFrameRemotely("Trait")
         Library:Notify({
             Title = "Remote UI",
             Content = state and "Opened Trait" or "Closed Trait",
@@ -24262,7 +24265,7 @@ Tabs.Settings:CreateToggle({
     CurrentValue = Config.DisableAllKeybinds or false,
     Callback = function(Value)
         Config.DisableAllKeybinds = Value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 })
 
@@ -24272,14 +24275,14 @@ Tabs.Settings:CreateKeybind({
     CurrentKeybind = Config.FlyKeybind or "F",
     Callback = function()
         if not UserInputService:GetFocusedTextBox() and not Config.DisableAllKeybinds and Config.FlyKeybindEnabled ~= false then
-            toggleFly()
+            __HH.toggleFly()
         end
     end,
     OnChanged = function(NewKey)
         local keyCode = typeof(NewKey) == "EnumItem" and NewKey or Enum.KeyCode[tostring(NewKey):gsub("Enum%.KeyCode%.", "")]
         if keyCode then
             Config.FlyKeybind = keyCode.Name
-            SaveConfig()
+            __HH.SaveConfig()
         end
     end
 })
@@ -24290,14 +24293,14 @@ Tabs.Settings:CreateKeybind({
     CurrentKeybind = Config.NoclipKeybind or "J",
     Callback = function()
         if not UserInputService:GetFocusedTextBox() and not Config.DisableAllKeybinds and Config.NoclipKeybindEnabled ~= false then
-            toggleNoclip()
+            __HH.toggleNoclip()
         end
     end,
     OnChanged = function(NewKey)
         local keyCode = typeof(NewKey) == "EnumItem" and NewKey or Enum.KeyCode[tostring(NewKey):gsub("Enum%.KeyCode%.", "")]
         if keyCode then
             Config.NoclipKeybind = keyCode.Name
-            SaveConfig()
+            __HH.SaveConfig()
         end
     end
 })
@@ -24305,7 +24308,7 @@ Tabs.Settings:CreateKeybind({
 
 
 do
-    local function HopLowServer()
+    __HH.HopLowServer = function()
         task.spawn(function()
             local placeId = game.PlaceId
             local curJobId = game.JobId
@@ -24419,7 +24422,7 @@ do
     Tabs.Misc:CreateButton({
         Name = "Server Hop Low Players",
         Callback = function()
-            HopLowServer()
+            __HH.HopLowServer()
         end
     })
 end
@@ -24444,7 +24447,7 @@ local JL = {
 local UI = {}
 
 -- ---------------------------------------------------------------- tiện ích
-local function squash(s)
+__HH.squash = function(s)
     local r = tostring(s or ""):lower():gsub("%s+", "")
     return r
 end
@@ -24466,24 +24469,24 @@ local function notify(title, content)
     end)
 end
 
-local function warnOnce(key, title, content)
+__HH.warnOnce = function(key, title, content)
     if JL.Warned[key] then return end
     JL.Warned[key] = true
     notify(title, content)
 end
 
-local function setFlag(flag, key, value)
+__HH.setFlag = function(flag, key, value)
     if Config[key] == value then return end
     local f = Library.Flags[flag]
     if f and f.Set then
         pcall(f.Set, f, value)
     else
         Config[key] = value
-        SaveConfig()
+        __HH.SaveConfig()
     end
 end
 
-local function fmtW(w)
+__HH.fmtW = function(w)
     if w >= 1e6 then return string.format("%gM", w / 1e6) end
     return tostring(w)
 end
@@ -24496,10 +24499,10 @@ end
 --   B(tên boss|nil, chế độ, số lần, secret?)
 --   manual = yêu cầu script KHÔNG tự làm được (chiêu, level NPC, tiền, PvP...)
 -- ======================================================================
-local function F(n, c, w, i, b, wx, t)
+__HH.F = function(n, c, w, i, b, wx, t)
     return { n = n and norm(n) or nil, raw = n or "Cá bất kỳ", c = c or 1, w = w, i = i, b = b, wx = wx, t = t }
 end
-local function B(k, mode, c, secret)
+__HH.B = function(k, mode, c, secret)
     return { k = k, mode = mode or "Normal", c = c or 1, secret = secret == true }
 end
 
@@ -24511,17 +24514,17 @@ local CHAINS = {
         steps = {
             { title = "5 Trueform + 1 Ascended Perch", rod = "ascendantbamboo",
               manual = "Cần sở hữu Ascendant Bamboo Rod (mua trên ngọn cây Đảo 2)",
-              fish = { F("Trueform Jiaolongfish", 5, nil, "Sovereign Isle"), F("Ascended Perch", 1, nil, "Perch Isle") } },
+              fish = { __HH.F("Trueform Jiaolongfish", 5, nil, "Sovereign Isle"), __HH.F("Ascended Perch", 1, nil, "Perch Isle") } },
             { title = "5 Ascended Perch", manual = "Cần có chiêu Taijiquan Technique V2",
-              fish = { F("Ascended Perch", 5, nil, "Perch Isle") } },
+              fish = { __HH.F("Ascended Perch", 5, nil, "Perch Isle") } },
             { title = "10 cá ≥1M + Reborn Puffer 5M (Tuyết)", home = { "Battlefield Isle", "Bamboo Isle" },
-              fish = { F(nil, 10, 1e6, "Frost Isle"), F("Reborn Puffer Beast", 1, 5e6, "Frost Isle", nil, "snow") } },
+              fish = { __HH.F(nil, 10, 1e6, "Frost Isle"), __HH.F("Reborn Puffer Beast", 1, 5e6, "Frost Isle", nil, "snow") } },
             { title = "Colossal Tigerfish 5M (Battlefield)", home = { "Battlefield Isle", "Bamboo Isle" },
               manual = "Cần có chiêu Taijiquan Technique V3",
-              fish = { F("Colossal Tigerfish", 1, 5e6, "Battlefield Isle") } },
+              fish = { __HH.F("Colossal Tigerfish", 1, 5e6, "Battlefield Isle") } },
             { title = "Hạ Long Diaohai (Nightmare)", home = { "Battlefield Isle", "Bamboo Isle" },
               manual = "Cần có cả Ascended Taiji Art và Shadowless Taiji Strike",
-              boss = B("diaohai", "Nightmare", 1, true) },
+              boss = __HH.B("diaohai", "Nightmare", 1, true) },
         },
     },
     {
@@ -24530,11 +24533,11 @@ local CHAINS = {
         steps = {
             { title = "Dùng 4 chiêu mỗi chiêu 50 lần", manual = "Dùng Leopard Lock, Iron Grip Art, Dual Sonic Kick, Whirlwind Fishing Art mỗi chiêu 50 lần (bật Auto Skill, chọn đủ phím chiêu)" },
             { title = "Wind Fish 2M (Gió) + dùng chiêu", manual = "Dùng Fishsea Heavenhook 50 lần + Upside Down Fishing 50 lần",
-              fish = { F("Wind Fish", 1, 2e6, "Weather Isle", nil, "wind") } },
+              fish = { __HH.F("Wind Fish", 1, 2e6, "Weather Isle", nil, "wind") } },
             { title = "Flame Fish 2M (Nắng gắt) + Ba Chang Lv5", manual = "Nâng Ba Chang lên Level 5",
-              fish = { F("Flame Fish", 1, 2e6, "Weather Isle", nil, "hot") } },
+              fish = { __HH.F("Flame Fish", 1, 2e6, "Weather Isle", nil, "hot") } },
             { title = "Thunder Bull Shark 40M + 10 Trueform",
-              fish = { F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait"), F("Trueform Jiaolongfish", 10, nil, "Sovereign Isle") } },
+              fish = { __HH.F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait"), __HH.F("Trueform Jiaolongfish", 10, nil, "Sovereign Isle") } },
         },
     },
     {
@@ -24543,26 +24546,26 @@ local CHAINS = {
         steps = {
             { title = "Sở hữu 3 chiêu", manual = "Pacifies the Clouds, Infinite Sky Ascension V3, One-Strike Heaven Gate V3" },
             { title = "Mountain Dragonwhale 3M (Gió)", manual = "Cần chiêu Taijiquan V3 và River Suppression",
-              fish = { F("Mountain Dragonwhale", 1, 3e6, "Battlefield Isle", nil, "wind") } },
+              fish = { __HH.F("Mountain Dragonwhale", 1, 3e6, "Battlefield Isle", nil, "wind") } },
             { title = "Golden Dragonfish 5M (Nắng gắt)", manual = "Cần chiêu Phoenix Annihilation Art + nâng Đoàn Càn Lv3",
-              fish = { F("Golden Dragonfish", 1, 5e6, "Amber Isle", nil, "hot") } },
+              fish = { __HH.F("Golden Dragonfish", 1, 5e6, "Amber Isle", nil, "hot") } },
             { title = "Crimson Bonefiend 7M (ban đêm)", manual = "Cần chiêu Lone Swan Treads Snow + nâng Đoàn Càn Lv5",
-              fish = { F("Crimson Bonefiend", 1, 7e6, "World Angler Isle", nil, nil, "night") } },
+              fish = { __HH.F("Crimson Bonefiend", 1, 7e6, "World Angler Isle", nil, nil, "night") } },
         },
     },
     {
         name = "Sage Yijiu (Hiền Triết)",
         keys = { "yijiu" }, q = { "yijiu" }, home = { "Beginning Isle" },
         steps = {
-            { title = "5 cá ≥1.5M", fish = { F(nil, 5, 1.5e6, "Perch Isle") } },
+            { title = "5 cá ≥1.5M", fish = { __HH.F(nil, 5, 1.5e6, "Perch Isle") } },
             { title = "Scarlet + Elder Scarlet (Bão sấm, Bamboo)", manual = "Cần Phoenix Strike Art V2 + câu 250 lần",
-              fish = { F("Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder"), F("Elder Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder") } },
+              fish = { __HH.F("Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder"), __HH.F("Elder Scarlet Fish", 1, 1.5e6, "Bamboo Isle", nil, "thunder") } },
             { title = "Draconic Koi 2M (Nắng gắt) + 10 cá ≥1M", manual = "Cần chiêu One-Strike Heaven Gate V3",
-              fish = { F("Draconic Koi", 1, 2e6, "Amber Isle", nil, "hot"), F(nil, 10, 1e6, "Amber Isle") } },
+              fish = { __HH.F("Draconic Koi", 1, 2e6, "Amber Isle", nil, "hot"), __HH.F(nil, 10, 1e6, "Amber Isle") } },
             { title = "Rainbow Dragonfish 6.5M (Rainbow Bait)", manual = "Dùng Fivefold Seal Ascension 50 lần",
-              fish = { F("Rainbow Dragonfish", 1, 6.5e6, nil, "Rainbow Bait") } },
+              fish = { __HH.F("Rainbow Dragonfish", 1, 6.5e6, nil, "Rainbow Bait") } },
             { title = "Frost Kingfish 5M (Tuyết) + Frost Queenfish 6.5M", manual = "Dùng Tenfold Convergence 100 lần",
-              fish = { F("Frost Kingfish", 1, 5e6, "Frost Isle", nil, "snow"), F("Frost Queenfish", 1, 6.5e6, "Frost Isle", "Frost Bait") } },
+              fish = { __HH.F("Frost Kingfish", 1, 5e6, "Frost Isle", nil, "snow"), __HH.F("Frost Queenfish", 1, 6.5e6, "Frost Isle", "Frost Bait") } },
         },
     },
     {
@@ -24570,9 +24573,9 @@ local CHAINS = {
         keys = { "xiaodaoshi", "taoist", "taosi" }, q = { "daoshi", "taoist", "taosi" }, home = { "Beginning Isle" },
         steps = {
             { title = "Nameless Octoparasite 7M (Nameless Bait)", manual = "Cần Apex Eagle Hunt + Taoist Rod + nâng Xiao Daoshi Lv5",
-              fish = { F("Nameless Octoparasite", 1, 7e6, nil, "Nameless Bait") } },
+              fish = { __HH.F("Nameless Octoparasite", 1, 7e6, nil, "Nameless Bait") } },
             { title = "Black Tortoise Bloodline 14M + 1B Cash", manual = "Nộp 1B Cash + cần chiêu Demon Mountainbreaker",
-              fish = { F("Black Tortoise Bloodline", 1, 14e6) } },
+              fish = { __HH.F("Black Tortoise Bloodline", 1, 14e6) } },
         },
     },
     {
@@ -24580,9 +24583,9 @@ local CHAINS = {
         keys = { "maoshan", "dashixiong", "maosan" }, q = { "maoshan", "shixiong", "maosan" }, home = { "Beginning Isle" },
         steps = {
             { title = "Nameless Octoparasite (Nameless Bait)", manual = "Cần Nine Suns Ascension + Yuqing Flowing Cast",
-              fish = { F("Nameless Octoparasite", 1, nil, nil, "Nameless Bait") } },
+              fish = { __HH.F("Nameless Octoparasite", 1, nil, nil, "Nameless Bait") } },
             { title = "Nameless Octoparasite 6M", manual = "Nâng Da Shixiong lên Level 5",
-              fish = { F("Nameless Octoparasite", 1, 6e6, nil, "Nameless Bait") } },
+              fish = { __HH.F("Nameless Octoparasite", 1, 6e6, nil, "Nameless Bait") } },
             { title = "Online 49 ngày", manual = "Chỉ cần online tích lũy đủ 49 ngày, script không làm được" },
         },
     },
@@ -24591,7 +24594,7 @@ local CHAINS = {
         keys = { "beiming", "bacminh" }, q = { "beiming", "bacminh" }, home = { "Beginning Isle" },
         steps = {
             { title = "5 Nameless Octoparasite", manual = "Cần chiêu Bac Minh Technique + Head Smash",
-              fish = { F("Nameless Octoparasite", 5, nil, nil, "Nameless Bait") } },
+              fish = { __HH.F("Nameless Octoparasite", 5, nil, nil, "Nameless Bait") } },
             { title = "Dùng Head Smash + Bac Minh 50 lần", manual = "Dùng mỗi chiêu 50 lần (bật Auto Skill)" },
         },
     },
@@ -24600,11 +24603,11 @@ local CHAINS = {
         keys = { "biaodi" }, q = { "biaodi" }, home = { "World Angler Isle", "Beginning Isle" },
         steps = {
             { title = "Golden Shark 3M (World Angler)", manual = "Cần Seven Wounds Fusion, Friend Slaying Fishing Art, Beastbreaker Cleave V2",
-              fish = { F("Golden Shark", 1, 3e6, "World Angler Isle") } },
+              fish = { __HH.F("Golden Shark", 1, 3e6, "World Angler Isle") } },
             { title = "Dragonfish Devourer 5M (ban ngày) + 100 boss", manual = "Cần Six Vein Divine Hook + nâng Biao Di Lv5",
-              fish = { F("Dragonfish Devourer", 1, 5e6, "World Angler Isle", nil, nil, "day") }, boss = B(nil, "Normal", 100, false) },
-            { title = "50 boss + Thunder Bull Shark 40M", boss = B(nil, "Normal", 50, false),
-              fish = { F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait") } },
+              fish = { __HH.F("Dragonfish Devourer", 1, 5e6, "World Angler Isle", nil, nil, "day") }, boss = __HH.B(nil, "Normal", 100, false) },
+            { title = "50 boss + Thunder Bull Shark 40M", boss = __HH.B(nil, "Normal", 50, false),
+              fish = { __HH.F("Thunder Bull Shark", 1, 40e6, nil, "Thunder Bait") } },
         },
     },
     {
@@ -24613,11 +24616,11 @@ local CHAINS = {
         steps = {
             { title = "Nộp 50M tiền", manual = "Nộp 50M Cash (không cần câu cá)" },
             { title = "Demon Bladefish 2.5M (Mystic Reef)", manual = "Nâng Yaxuo lên Level 3",
-              fish = { F("Demon Bladefish", 1, 2.5e6, "Mystic Reef Isle") } },
+              fish = { __HH.F("Demon Bladefish", 1, 2.5e6, "Mystic Reef Isle") } },
             { title = "Colossal Bull Shark 5M (Bão sấm) + 500 Crystals", manual = "Nộp 500 Crystals",
-              fish = { F("Colossal Bull Shark", 1, 5e6, "Mystic Reef Isle", nil, "thunder") } },
+              fish = { __HH.F("Colossal Bull Shark", 1, 5e6, "Mystic Reef Isle", nil, "thunder") } },
             { title = "Thunder Bull Shark 50M", manual = "Nâng Yaxuo lên Level 5",
-              fish = { F("Thunder Bull Shark", 1, 50e6, nil, "Thunder Bait") } },
+              fish = { __HH.F("Thunder Bull Shark", 1, 50e6, nil, "Thunder Bait") } },
         },
     },
     {
@@ -24625,10 +24628,10 @@ local CHAINS = {
         keys = { "luoya" }, q = { "luoya" }, home = { "Beginning Isle" },
         steps = {
             { title = "Nộp 100M tiền", manual = "Cần chiêu Soul Chain Assault + nộp 100M Cash" },
-            { title = "100 boss + Dark Lionfish 2.5M (Mưa, Mistpeak)", boss = B(nil, "Normal", 100, false),
-              fish = { F("Dark Lionfish", 1, 2.5e6, "Mistpeak Isle", nil, "rain") } },
+            { title = "100 boss + Dark Lionfish 2.5M (Mưa, Mistpeak)", boss = __HH.B(nil, "Normal", 100, false),
+              fish = { __HH.F("Dark Lionfish", 1, 2.5e6, "Mistpeak Isle", nil, "rain") } },
             { title = "Black Tortoise Bloodline 8M", manual = "Nâng Luoya Zhi Wang lên Level 2",
-              fish = { F("Black Tortoise Bloodline", 1, 8e6) } },
+              fish = { __HH.F("Black Tortoise Bloodline", 1, 8e6) } },
         },
     },
     {
@@ -24637,9 +24640,9 @@ local CHAINS = {
         steps = {
             { title = "Nộp 100 Crystals", manual = "Cần chiêu Time Severing Hook + nộp 100 Crystals" },
             { title = "Thunder Bull Shark 30M + hạ Long Diaohai (Normal)", manual = "Dùng Serpentine Sword Intent 50 lần",
-              fish = { F("Thunder Bull Shark", 1, 30e6, nil, "Thunder Bait") }, boss = B("diaohai", "Normal", 1, true) },
+              fish = { __HH.F("Thunder Bull Shark", 1, 30e6, nil, "Thunder Bait") }, boss = __HH.B("diaohai", "Normal", 1, true) },
             { title = "Hạ Long Diaohai (Hard) + 100 boss", manual = "Nâng Liu Ju He lên Level 3",
-              boss = B("diaohai", "Hard", 1, true) },
+              boss = __HH.B("diaohai", "Hard", 1, true) },
         },
     },
     {
@@ -24647,9 +24650,9 @@ local CHAINS = {
         keys = { "shixingdiao" }, q = { "shixingdiao" }, home = { "Beginning Isle" },
         steps = {
             { title = "Nâng Biao Di + Biao Ge Lv5", manual = "Nâng Biao Di và Biao Ge lên Level 5" },
-            { title = "Vermilion Birdblood 50M", fish = { F("Vermilion Birdblood", 1, 50e6) } },
+            { title = "Vermilion Birdblood 50M", fish = { __HH.F("Vermilion Birdblood", 1, 50e6) } },
             { title = "Vermilion Birdblood 75M", manual = "Nâng Shi Xing Diao lên Level 5",
-              fish = { F("Vermilion Birdblood", 1, 75e6) } },
+              fish = { __HH.F("Vermilion Birdblood", 1, 75e6) } },
         },
     },
     {
@@ -24657,7 +24660,7 @@ local CHAINS = {
         keys = { "blindgrand", "grandangler" }, q = { "blindgrand", "grandangler" }, home = { "Battlefield Isle" },
         steps = {
             { title = "Crimson Bream 2.5M + Silver Bream 3.5M", manual = "Cần 3 chiêu Tiger's Hunt, Heaven's Burden, Astral Grand Art",
-              fish = { F("Crimson Bream Sovereign", 1, 2.5e6, "Battlefield Isle"), F("Silver Bream Sovereign", 1, 3.5e6, "Battlefield Isle") } },
+              fish = { __HH.F("Crimson Bream Sovereign", 1, 2.5e6, "Battlefield Isle"), __HH.F("Silver Bream Sovereign", 1, 3.5e6, "Battlefield Isle") } },
         },
     },
     {
@@ -24665,7 +24668,7 @@ local CHAINS = {
         keys = { "hadieude", "hadieu", "dieude" }, q = { "hadieu", "dieude" }, home = { "Beginning Isle" },
         steps = {
             { title = "Rainbow Dragonfish 7M (Rainbow Bait)", manual = "Dùng Gate of Closure, Gate of Opening, Sever the Gate V2 mỗi chiêu 50 lần",
-              fish = { F("Rainbow Dragonfish", 1, 7e6, nil, "Rainbow Bait") } },
+              fish = { __HH.F("Rainbow Dragonfish", 1, 7e6, nil, "Rainbow Bait") } },
         },
     },
     {
@@ -24673,17 +24676,17 @@ local CHAINS = {
         keys = { "chutianjiao", "tianjiao" }, q = { "tianjiao" }, home = { "Beginning Isle" },
         steps = {
             { title = "Vermilion Birdblood 75M", manual = "Nâng Chu Xin, Biao Di, Ba Chang lên Level 5",
-              fish = { F("Vermilion Birdblood", 1, 75e6) } },
+              fish = { __HH.F("Vermilion Birdblood", 1, 75e6) } },
         },
     },
     {
         name = "Samba (không chắc 100% thứ tự)",
         keys = { "samba" }, q = { "samba" }, home = { "Beginning Isle" },
         steps = {
-            { title = "Hạ Enzo (Normal)", boss = B("enzo", "Normal", 1, false) },
-            { title = "Hạ Enzo (Hard)", boss = B("enzo", "Hard", 1, false) },
-            { title = "Hạ Enzo (Nightmare)", manual = "Thắng 5 trận PvP", boss = B("enzo", "Nightmare", 1, false) },
-            { title = "One-shot Enzo (Normal)", manual = "Nâng Samba Lv5 + hạ Enzo (Normal) chỉ bằng 1 chiêu", boss = B("enzo", "Normal", 1, false) },
+            { title = "Hạ Enzo (Normal)", boss = __HH.B("enzo", "Normal", 1, false) },
+            { title = "Hạ Enzo (Hard)", boss = __HH.B("enzo", "Hard", 1, false) },
+            { title = "Hạ Enzo (Nightmare)", manual = "Thắng 5 trận PvP", boss = __HH.B("enzo", "Nightmare", 1, false) },
+            { title = "One-shot Enzo (Normal)", manual = "Nâng Samba Lv5 + hạ Enzo (Normal) chỉ bằng 1 chiêu", boss = __HH.B("enzo", "Normal", 1, false) },
         },
     },
 }
@@ -24707,7 +24710,7 @@ pcall(function()
     end
 end)
 if not CHAIN_BY[QC.Chain] then QC.Chain = CHAINS[1].name end
-local function saveQC()
+__HH.saveQC = function()
     pcall(function()
         if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
         writefile(QC_FILE, HttpService:JSONEncode(QC))
@@ -24715,7 +24718,7 @@ local function saveQC()
 end
 
 -- ----------------------------------------------------- đọc túi cá / cần / mồi
-local function itemCount(obj)
+__HH.itemCount = function(obj)
     local c = 0
     if obj:IsA("ValueBase") and type(obj.Value) == "number" then c = obj.Value end
     if c <= 0 then
@@ -24731,7 +24734,7 @@ local function itemCount(obj)
     return c
 end
 
-local function weightOf(obj)
+__HH.weightOf = function(obj)
     for _, n in ipairs({ "Weight", "Size", "Kg", "Mass" }) do
         local a = tonumber(obj:GetAttribute(n))
         if a then return a end
@@ -24741,19 +24744,19 @@ local function weightOf(obj)
     return nil
 end
 
-local function nameOf(obj)
+__HH.nameOf = function(obj)
     return obj:GetAttribute("FishName") or obj:GetAttribute("Name") or obj.Name
 end
 
 local FISH_CONTAINERS = { "Inventory", "Fish", "Fishes", "FishInventory", "Fishing" }
 
-local function scanFish()
+__HH.scanFish = function()
     local list = {}
     for _, cn in ipairs(FISH_CONTAINERS) do
         local c = PlayerData:FindFirstChild(cn)
         if c then
             for _, ch in ipairs(c:GetChildren()) do
-                table.insert(list, { Name = cleanName(nameOf(ch)), Raw = ch.Name, Count = itemCount(ch), Weight = weightOf(ch) })
+                table.insert(list, { Name = cleanName(__HH.nameOf(ch)), Raw = ch.Name, Count = __HH.itemCount(ch), Weight = __HH.weightOf(ch) })
             end
         end
     end
@@ -24761,9 +24764,9 @@ local function scanFish()
 end
 
 -- Đếm cá đúng tên (nil = bất kỳ) và nặng >= minW. Lấy max(túi đồ, bộ đếm phiên).
-local function fishCount(name, minW)
+__HH.fishCount = function(name, minW)
     local inv = 0
-    for _, e in ipairs(scanFish()) do
+    for _, e in ipairs(__HH.scanFish()) do
         if (not name or e.Name == name) then
             if not minW then
                 inv += e.Count
@@ -24781,23 +24784,23 @@ local function fishCount(name, minW)
     return math.max(inv, tr)
 end
 
-local function ownsRod(partial)
+__HH.ownsRod = function(partial)
     local inv = PlayerData:FindFirstChild("FishingRodInventory")
     if inv then
         for _, r in ipairs(inv:GetChildren()) do
-            if squash(r.Name):find(partial, 1, true) then return true end
+            if __HH.squash(r.Name):find(partial, 1, true) then return true end
         end
     end
     return false
 end
 
-local function ownsBait(name)
-    local want = squash(name)
+__HH.ownsBait = function(name)
+    local want = __HH.squash(name)
     for _, cn in ipairs({ "Bait", "Inventory" }) do
         local c = PlayerData:FindFirstChild(cn)
         if c then
             for _, ch in ipairs(c:GetChildren()) do
-                if squash(cleanName(ch.Name)):find(want, 1, true) and itemCount(ch) > 0 then
+                if __HH.squash(cleanName(ch.Name)):find(want, 1, true) and __HH.itemCount(ch) > 0 then
                     return true
                 end
             end
@@ -24806,7 +24809,7 @@ local function ownsBait(name)
     return false
 end
 
-local function equipBait(name)
+__HH.equipBait = function(name)
     if os.clock() - JL.LastBait < 15 then return end
     JL.LastBait = os.clock()
     local ev = EquipBaitEvent or Events:FindFirstChild("EquipBait")
@@ -24826,7 +24829,7 @@ local WX = {
 }
 local WX_LABEL = { snow = "Tuyết", wind = "Gió", hot = "Nắng gắt", thunder = "Bão sấm", rain = "Mưa" }
 
-local function weatherText()
+__HH.weatherText = function()
     local found
     for _, o in ipairs({ workspace, ReplicatedStorage, Lighting, PlayerData, DataFolder, Info }) do
         for _, n in ipairs({ "Weather", "CurrentWeather", "Event" }) do
@@ -24841,8 +24844,8 @@ local function weatherText()
     return found and string.lower(found) or nil
 end
 
-local function weatherIs(key)
-    local t = weatherText()
+__HH.weatherIs = function(key)
+    local t = __HH.weatherText()
     if not t then return nil end
     for _, w in ipairs(WX[key] or { key }) do
         if t:find(w, 1, true) then return true end
@@ -24850,25 +24853,25 @@ local function weatherIs(key)
     return false
 end
 
-local function isNight()
+__HH.isNight = function()
     local t = Lighting.ClockTime
     return t >= 18 or t < 6
 end
 
 -- ------------------------------------------------------------ boss kills
-local function bossCount(b)
+__HH.bossCount = function(b)
     return JL.BossKills[b.k or "any"] or 0
 end
 
 -- ------------------------------------------------------------ quest state
-local function findQuest(chain)
+__HH.findQuest = function(chain)
     local q = PlayerData:FindFirstChild("Quest")
     local containers = { q and q:FindFirstChild("Main"), q, PlayerData }
     for _, c in ipairs(containers) do
         if c then
             for _, ch in ipairs(c:GetChildren()) do
                 if ch:IsA("Folder") or ch:IsA("Configuration") then
-                    local l = squash(ch.Name)
+                    local l = __HH.squash(ch.Name)
                     if not l:find("ticket", 1, true) then
                         for _, k in ipairs(chain.q) do
                             if l:find(k, 1, true) then return ch end
@@ -24882,7 +24885,7 @@ local function findQuest(chain)
 end
 
 -- trả về: hoàn thành? (nil = không rõ), có mục tiêu dạng số?
-local function questState(qf)
+__HH.questState = function(qf)
     if not qf then return nil, false end
     local infoMain = Info:FindFirstChild("MainQuest")
     local qi
@@ -24915,33 +24918,33 @@ local function questState(qf)
     return true, true
 end
 
-local function currentTarget(st)
+__HH.currentTarget = function(st)
     for _, f in ipairs(st.fish or {}) do
-        if fishCount(f.n, f.w) < (f.c or 1) then return f end
+        if __HH.fishCount(f.n, f.w) < (f.c or 1) then return f end
     end
     return nil
 end
 
-local function stepDone(st, qf)
-    local qDone, qHas = questState(qf)
+__HH.stepDone = function(st, qf)
+    local qDone, qHas = __HH.questState(qf)
     if qHas and qDone ~= nil then return qDone end
     if not ((st.fish and #st.fish > 0) or st.boss) then return false end
-    if currentTarget(st) then return false end
-    if st.boss and bossCount(st.boss) < st.boss.c then return false end
+    if __HH.currentTarget(st) then return false end
+    if st.boss and __HH.bossCount(st.boss) < st.boss.c then return false end
     return true
 end
 
 -- --------------------------------------------------------------- tìm NPC
-local function findNpc(chain)
+__HH.findNpc = function(chain)
     local roots = { workspace:FindFirstChild("NPC"), workspace }
     for _, r in ipairs(roots) do
         if r then
             for _, d in ipairs(r:GetDescendants()) do
                 if d:IsA("Model") or d:IsA("BasePart") then
-                    local s = squash(d.Name)
+                    local s = __HH.squash(d.Name)
                     for _, k in ipairs(chain.keys) do
                         if s:find(k, 1, true) then
-                            local p = GetModelPart(d)
+                            local p = __HH.GetModelPart(d)
                             if p and p:IsDescendantOf(workspace) then
                                 return d, p
                             end
@@ -24954,16 +24957,16 @@ local function findNpc(chain)
     return nil, nil
 end
 
-local function gotoNpc(chain, st)
+__HH.gotoNpc = function(chain, st)
     local char = LocalPlayer.Character or cachedChar
     local hrp = (char and char:FindFirstChild("HumanoidRootPart")) or cachedHrp
     if not hrp then return false end
-    local m, p = findNpc(chain)
+    local m, p = __HH.findNpc(chain)
     if not p then
         for _, home in ipairs(st.home or chain.home or {}) do
-            TeleportToIsland(home)
+            __HH.TeleportToIsland(home)
             task.wait(1.5)
-            m, p = findNpc(chain)
+            m, p = __HH.findNpc(chain)
             if p then break end
         end
     end
@@ -24982,7 +24985,7 @@ end
 local DIALOG_KEYS = { "quest", "complete", "turn", "give", "hand", "claim", "accept", "continue", "next", "skill", "ok" }
 local BAD_KEYS = { "close", "leave", "cancel", "bye", "nevermind" }
 
-local function clickDialogue()
+__HH.clickDialogue = function()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     local menu = pg and pg:FindFirstChild("MainGui") and pg.MainGui:FindFirstChild("Menu")
     local dlg = menu and menu:FindFirstChild("Dialogue")
@@ -24991,7 +24994,7 @@ local function clickDialogue()
     if bf then
         for _, btn in ipairs(bf:GetChildren()) do
             if btn:IsA("TextButton") and btn.Name ~= "Template" and btn.Visible then
-                local t = norm(GetButtonLabelText(btn))
+                local t = norm(__HH.GetButtonLabelText(btn))
                 local bad, good = false, false
                 for _, k in ipairs(BAD_KEYS) do if t:find(k, 1, true) then bad = true end end
                 for _, k in ipairs(DIALOG_KEYS) do if t:find(k, 1, true) then good = true end end
@@ -25005,8 +25008,8 @@ local function clickDialogue()
     pcall(function() dlg.Visible = false end)
 end
 
-local function interact(chain)
-    local m, p = findNpc(chain)
+__HH.interact = function(chain)
+    local m, p = __HH.findNpc(chain)
     if not p then return false end
     local prompt = (m and m:FindFirstChildWhichIsA("ProximityPrompt", true)) or p:FindFirstChildWhichIsA("ProximityPrompt", true)
     if prompt and fireproximityprompt then
@@ -25027,12 +25030,12 @@ local function interact(chain)
         pcall(function() ChooseDialogueOption:FireServer(nm, 1, "AcceptQuest", { g, nm .. " Quest" }) end)
         task.wait(0.3)
     end
-    clickDialogue()
+    __HH.clickDialogue()
     return true
 end
 
-local function chainByNpc(s)
-    local l = squash(s)
+__HH.chainByNpc = function(s)
+    local l = __HH.squash(s)
     for _, ch in ipairs(CHAINS) do
         for _, k in ipairs(ch.keys) do
             if l:find(k, 1, true) then return ch end
@@ -25057,7 +25060,7 @@ do
                     local args = table.pack(...)
                     pcall(function()
                         if type(args[1]) == "string" then
-                            local ch = chainByNpc(args[1])
+                            local ch = __HH.chainByNpc(args[1])
                             if ch then
                                 local key = tostring(args[1]) .. "|" .. tostring(args[2]) .. "|" .. tostring(args[3])
                                 local list = JL.Learned[ch.name]
@@ -25094,7 +25097,7 @@ task.spawn(function()
                         local lbl = pb and pb:FindFirstChild("FishName")
                         nm = lbl and lbl.Text or ""
                     end
-                    JL.LastFish = { name = cleanName(nm), weight = weightOf(obj) }
+                    JL.LastFish = { name = cleanName(nm), weight = __HH.weightOf(obj) }
                 end
             end
         end)
@@ -25122,74 +25125,74 @@ pcall(function()
 end)
 
 -- ------------------------------------------------------------------ điều khiển farm
-local function farmOff()
+__HH.farmOff = function()
     if JL.FarmOn then
-        setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
+        __HH.setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
         JL.FarmOn = false
     end
-    setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
-    setFlag("AutoBossToggle", "AutoBoss", false)
+    __HH.setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+    __HH.setFlag("AutoBossToggle", "AutoBoss", false)
 end
 
-local function farmAt(island)
-    setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
-    setFlag("AutoBossToggle", "AutoBoss", false)
+__HH.farmAt = function(island)
+    __HH.setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+    __HH.setFlag("AutoBossToggle", "AutoBoss", false)
     Config.SelectedFarmIsland = island
-    setFlag("AutoFarmIslandToggle", "AutoFarmIsland", true)
-    setFlag("AutoReelToggle", "AutoReel", true)
-    setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
-    setFlag("AutoSkillToggle", "AutoSkill", true)
+    __HH.setFlag("AutoFarmIslandToggle", "AutoFarmIsland", true)
+    __HH.setFlag("AutoReelToggle", "AutoReel", true)
+    __HH.setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
+    __HH.setFlag("AutoSkillToggle", "AutoSkill", true)
     JL.FarmOn = true
-    pcall(StepAutoFarmIsland, LocalPlayer.Character)
+    pcall(__HH.StepAutoFarmIsland, LocalPlayer.Character)
 end
 
-local function bossOn(b)
+__HH.bossOn = function(b)
     if JL.FarmOn then
-        setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
+        __HH.setFlag("AutoFarmIslandToggle", "AutoFarmIsland", false)
         JL.FarmOn = false
     end
     local f = Library.Flags["SelectBossModeDropdown"]
     if f and f.Set then pcall(f.Set, f, b.mode) else Config.BossMode = b.mode end
-    setFlag("AutoReelToggle", "AutoReel", true)
-    setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
-    setFlag("AutoSkillToggle", "AutoSkill", true)
+    __HH.setFlag("AutoReelToggle", "AutoReel", true)
+    __HH.setFlag("AutoMiniGameToggle", "AutoMiniGame", true)
+    __HH.setFlag("AutoSkillToggle", "AutoSkill", true)
     if b.secret then
-        setFlag("AutoBossToggle", "AutoBoss", false)
-        setFlag("AutoSecretBossToggle", "AutoSecretBoss", true)
+        __HH.setFlag("AutoBossToggle", "AutoBoss", false)
+        __HH.setFlag("AutoSecretBossToggle", "AutoSecretBoss", true)
     else
-        setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
-        setFlag("AutoBossToggle", "AutoBoss", true)
+        __HH.setFlag("AutoSecretBossToggle", "AutoSecretBoss", false)
+        __HH.setFlag("AutoBossToggle", "AutoBoss", true)
     end
 end
 
-local function inMinigame()
+__HH.inMinigame = function()
     return FishingGui and FishingGui.Visible
 end
 
-local function progressText(chain, idx, st, qf)
+__HH.progressText = function(chain, idx, st, qf)
     local parts = {}
     for _, f in ipairs(st.fish or {}) do
-        table.insert(parts, string.format("%s %d/%d%s", f.raw, fishCount(f.n, f.w), f.c, f.w and (" ≥" .. fmtW(f.w)) or ""))
+        table.insert(parts, string.format("%s %d/%d%s", f.raw, __HH.fishCount(f.n, f.w), f.c, f.w and (" ≥" .. __HH.fmtW(f.w)) or ""))
     end
     if st.boss then
-        table.insert(parts, string.format("Boss %s %d/%d", st.boss.k or "bất kỳ", bossCount(st.boss), st.boss.c))
+        table.insert(parts, string.format("Boss %s %d/%d", st.boss.k or "bất kỳ", __HH.bossCount(st.boss), st.boss.c))
     end
-    local qDone, qHas = questState(qf)
+    local qDone, qHas = __HH.questState(qf)
     local qs = qf and (qHas and (qDone == nil and "?" or (qDone and "✓" or "✗")) or "?") or "chưa nhận"
     return string.format("B%d/%d | %s | Quest %s", idx, #chain.steps,
         #parts > 0 and table.concat(parts, " | ") or "(không có mục tiêu cá, dùng Auto Farm)", qs)
 end
 
-local function refreshStepUI()
+__HH.refreshStepUI = function()
     if UI.refreshSteps then pcall(UI.refreshSteps) end
 end
 
-local function finishChain(chain)
+__HH.finishChain = function(chain)
     JL.Status = "HOÀN TẤT chuỗi " .. chain.name .. "!"
     notify("Chuỗi nhiệm vụ", "Hoàn tất toàn bộ chuỗi " .. chain.name)
     JL.Protect = false
-    farmOff()
-    if UI.Toggle then UI.Toggle:Set(false) else QC.On = false saveQC() end
+    __HH.farmOff()
+    if UI.Toggle then UI.Toggle:Set(false) else QC.On = false __HH.saveQC() end
 end
 
 -- ---------------------------------------------------------------------- vòng chính
@@ -25198,36 +25201,36 @@ local function step()
     local idx = math.clamp(math.floor(tonumber(QC.Stage) or 1), 1, #chain.steps)
     local st = chain.steps[idx]
     if not (LocalPlayer.Character or cachedChar) then return end
-    local qf = findQuest(chain)
-    JL.Progress = progressText(chain, idx, st, qf)
+    local qf = __HH.findQuest(chain)
+    JL.Progress = __HH.progressText(chain, idx, st, qf)
     local tag = chain.name .. "#" .. idx
 
     if st.manual then
-        warnOnce("man" .. tag, "Yêu cầu thủ công", st.manual)
+        __HH.warnOnce("man" .. tag, "Yêu cầu thủ công", st.manual)
     end
-    if st.rod and not ownsRod(st.rod) then
-        warnOnce("rod" .. tag, "Thiếu cần câu", "Bạn chưa có cần yêu cầu cho bước này")
+    if st.rod and not __HH.ownsRod(st.rod) then
+        __HH.warnOnce("rod" .. tag, "Thiếu cần câu", "Bạn chưa có cần yêu cầu cho bước này")
     end
 
-    if stepDone(st, qf) then
-        if inMinigame() then JL.Status = "Chờ kéo xong cá rồi trả nhiệm vụ..." return end
-        farmOff()
+    if __HH.stepDone(st, qf) then
+        if __HH.inMinigame() then JL.Status = "Chờ kéo xong cá rồi trả nhiệm vụ..." return end
+        __HH.farmOff()
         JL.Status = "B" .. idx .. " xong → trả nhiệm vụ (" .. chain.name .. ")"
         if os.clock() - JL.LastTurnIn < 6 then return end
-        if not gotoNpc(chain, st) then return end
+        if not __HH.gotoNpc(chain, st) then return end
         JL.LastTurnIn = os.clock()
-        interact(chain)
+        __HH.interact(chain)
         task.wait(2)
         JL.Caught = {}
         JL.BossKills = { any = 0, enzo = 0, diaohai = 0 }
-        if not stepDone(st, findQuest(chain)) then
+        if not __HH.stepDone(st, __HH.findQuest(chain)) then
             if idx >= #chain.steps then
-                finishChain(chain)
+                __HH.finishChain(chain)
             else
                 QC.Stage = idx + 1
                 JL.AcceptTries[chain.name .. "#" .. (idx + 1)] = 0
-                saveQC()
-                refreshStepUI()
+                __HH.saveQC()
+                __HH.refreshStepUI()
                 notify(chain.name, "Đã trả B" .. idx .. " → chuyển sang B" .. (idx + 1))
             end
         end
@@ -25235,35 +25238,35 @@ local function step()
     end
 
     -- chưa xong: nhận nhiệm vụ nếu chưa có
-    if not qf and (JL.AcceptTries[tag] or 0) < 3 and os.clock() - JL.LastAccept > 8 and not inMinigame() then
+    if not qf and (JL.AcceptTries[tag] or 0) < 3 and os.clock() - JL.LastAccept > 8 and not __HH.inMinigame() then
         JL.Status = "B" .. idx .. ": đến NPC nhận nhiệm vụ"
         JL.LastAccept = os.clock()
         JL.AcceptTries[tag] = (JL.AcceptTries[tag] or 0) + 1
-        farmOff()
-        if gotoNpc(chain, st) then interact(chain) end
+        __HH.farmOff()
+        if __HH.gotoNpc(chain, st) then __HH.interact(chain) end
         return
     end
 
-    local f = currentTarget(st)
+    local f = __HH.currentTarget(st)
     if f then
         -- mồi
         if f.b then
-            setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", false)
-            if ownsBait(f.b) then
-                equipBait(f.b)
+            __HH.setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", false)
+            if __HH.ownsBait(f.b) then
+                __HH.equipBait(f.b)
             else
-                warnOnce("bait" .. f.b, "Thiếu mồi", "Cần mồi " .. f.b .. " (mua/craft ở tab Shop)")
+                __HH.warnOnce("bait" .. f.b, "Thiếu mồi", "Cần mồi " .. f.b .. " (mua/craft ở tab Shop)")
             end
         else
-            setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", true)
+            __HH.setFlag("AutoEquipBestBaitToggle", "AutoEquipBestBait", true)
         end
         local waits = {}
         if f.wx then
-            local ok = weatherIs(f.wx)
+            local ok = __HH.weatherIs(f.wx)
             if ok == false then table.insert(waits, "chờ thời tiết " .. (WX_LABEL[f.wx] or f.wx)) end
         end
         if f.t then
-            if (f.t == "night") ~= isNight() then
+            if (f.t == "night") ~= __HH.isNight() then
                 table.insert(waits, f.t == "night" and "chờ ban đêm" or "chờ ban ngày")
             end
         end
@@ -25271,16 +25274,16 @@ local function step()
         JL.Status = string.format("B%d: câu %s tại %s%s", idx, f.raw, island,
             #waits > 0 and (" (" .. table.concat(waits, ", ") .. ")") or "")
         if not f.i and not st.island then
-            warnOnce("isl" .. tag, "Đảo chưa rõ", "Bước này không nêu đảo, dùng đảo dự phòng: " .. QC.Fallback .. " (đổi ở dropdown 'Đảo dự phòng')")
+            __HH.warnOnce("isl" .. tag, "Đảo chưa rõ", "Bước này không nêu đảo, dùng đảo dự phòng: " .. QC.Fallback .. " (đổi ở dropdown 'Đảo dự phòng')")
         end
-        farmAt(island)
-    elseif st.boss and bossCount(st.boss) < st.boss.c then
+        __HH.farmAt(island)
+    elseif st.boss and __HH.bossCount(st.boss) < st.boss.c then
         JL.Status = string.format("B%d: đánh boss %s (%s)", idx, st.boss.k or "bất kỳ", st.boss.mode)
-        bossOn(st.boss)
+        __HH.bossOn(st.boss)
     else
         -- bước chỉ cần dùng chiêu / yêu cầu thủ công: farm bình thường rồi chờ quest báo xong
         JL.Status = "B" .. idx .. ": farm chờ hoàn thành yêu cầu thủ công"
-        farmAt(st.island or QC.Fallback)
+        __HH.farmAt(st.island or QC.Fallback)
     end
 end
 
@@ -25296,7 +25299,7 @@ task.spawn(function()
         else
             if JL.Protect or JL.FarmOn then
                 JL.Protect = false
-                farmOff()
+                __HH.farmOff()
             end
             JL.Status = "Tắt"
         end
@@ -25314,7 +25317,7 @@ UI.Toggle = QTab:CreateToggle({
     CurrentValue = QC.On,
     Callback = function(Value)
         QC.On = Value
-        saveQC()
+        __HH.saveQC()
         if Value then
             JL.Warned = {}
             notify("Chuỗi nhiệm vụ", "Đã bật. Đang CHẶN bán cá trong lúc chạy.")
@@ -25322,7 +25325,7 @@ UI.Toggle = QTab:CreateToggle({
     end
 })
 
-local function stepOptions()
+__HH.stepOptions = function()
     local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
     local opts = {}
     for i, st in ipairs(chain.steps) do
@@ -25332,7 +25335,7 @@ local function stepOptions()
 end
 
 local function stepLabel(idx)
-    local opts = stepOptions()
+    local opts = __HH.stepOptions()
     return opts[math.clamp(idx, 1, #opts)]
 end
 
@@ -25347,14 +25350,14 @@ UI.ChainDD = QTab:CreateDropdown({
         if not Value or not CHAIN_BY[Value] or Value == QC.Chain then return end
         QC.Chain = Value
         QC.Stage = 1
-        saveQC()
+        __HH.saveQC()
         JL.Warned = {}
-        refreshStepUI()
+        __HH.refreshStepUI()
     end
 })
 
 do
-    local opts = stepOptions()
+    local opts = __HH.stepOptions()
     UI.StepDD = QTab:CreateDropdown({
         Flag = "QuestStepDropdown",
         Name = "Bước hiện tại",
@@ -25366,14 +25369,14 @@ do
             local n = tonumber(tostring(Value or ""):match("^B(%d+)"))
             if n and n ~= QC.Stage then
                 QC.Stage = n
-                saveQC()
+                __HH.saveQC()
             end
         end
     })
 end
 
 function UI.refreshSteps()
-    local opts = stepOptions()
+    local opts = __HH.stepOptions()
     if UI.ChainDD and UI.ChainDD:Get() ~= QC.Chain then UI.ChainDD:Set(QC.Chain, true) end
     UI.StepDD:Refresh(opts, false, true)
     UI.StepDD:Set(stepLabel(QC.Stage), true)
@@ -25392,7 +25395,7 @@ do
         AllowNone = false,
         Callback = function(Value)
             QC.Fallback = Value or QC.Fallback
-            saveQC()
+            __HH.saveQC()
         end
     })
 end
@@ -25434,7 +25437,7 @@ QTab:CreateButton({
         task.spawn(function()
             local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
             local st = chain.steps[math.clamp(QC.Stage, 1, #chain.steps)]
-            if not gotoNpc(chain, st) then notify("Chuỗi nhiệm vụ", "Không tìm thấy NPC") end
+            if not __HH.gotoNpc(chain, st) then notify("Chuỗi nhiệm vụ", "Không tìm thấy NPC") end
         end)
     end
 })
@@ -25444,7 +25447,7 @@ QTab:CreateButton({
     Callback = function()
         task.spawn(function()
             local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
-            if not interact(chain) then notify("Chuỗi nhiệm vụ", "Hãy đứng gần NPC trước") end
+            if not __HH.interact(chain) then notify("Chuỗi nhiệm vụ", "Hãy đứng gần NPC trước") end
         end)
     end
 })
@@ -25455,8 +25458,8 @@ QTab:CreateButton({
         local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
         if QC.Stage < #chain.steps then
             QC.Stage += 1
-            saveQC()
-            refreshStepUI()
+            __HH.saveQC()
+            __HH.refreshStepUI()
         end
     end
 })
@@ -25474,7 +25477,7 @@ QTab:CreateButton({
     Callback = function()
         local chain = CHAIN_BY[QC.Chain] or CHAINS[1]
         print("=== QUEST CHAIN DEBUG: " .. chain.name .. " ===")
-        local qf = findQuest(chain)
+        local qf = __HH.findQuest(chain)
         print("Quest folder:", qf and qf:GetFullName() or "không thấy")
         if qf then
             for _, c in ipairs(qf:GetDescendants()) do
@@ -25487,11 +25490,11 @@ QTab:CreateButton({
         if main then
             for _, c in ipairs(main:GetChildren()) do print("  ", c.Name) end
         end
-        local m, p = findNpc(chain)
+        local m, p = __HH.findNpc(chain)
         print("NPC:", m and m:GetFullName() or "không thấy", p and tostring(p.Position) or "")
-        print("Thời tiết:", tostring(weatherText()), "| Ban đêm:", tostring(isNight()))
+        print("Thời tiết:", tostring(__HH.weatherText()), "| Ban đêm:", tostring(__HH.isNight()))
         local n = 0
-        for _, e in ipairs(scanFish()) do
+        for _, e in ipairs(__HH.scanFish()) do
             n += 1
             if n <= 80 then print("  fish:", e.Raw, "=>", e.Name, "x" .. e.Count, "kg:", tostring(e.Weight)) end
         end
@@ -25657,3 +25660,4 @@ if not ok then
     warn("MusicPlayer loi: " .. tostring(err))
 end
 -- ==== hết khối MUSIC TAB ====
+end -- HOANGHAI application scope

@@ -19857,7 +19857,7 @@ local LocalPlayer = Players.LocalPlayer
 local Events = ReplicatedStorage:WaitForChild("Events")
 local Info = ReplicatedStorage:WaitForChild("Info")
 local DataFolder = ReplicatedStorage:WaitForChild("Data")
-local PlayerData = DataFolder:WaitForChild(LocalPlayer.UserId)
+local PlayerData = DataFolder:WaitForChild(tostring(LocalPlayer.UserId))
 
 local ToggleHotbar = Events:WaitForChild("ToggleHotbar")
 local FishingEvent = Events:WaitForChild("Fishing")
@@ -25053,7 +25053,7 @@ do
                     JL.BlockedSells += 1
                     return nil
                 end
-                if self == ChooseDialogueOption and not checkcaller() then
+                if self == ChooseDialogueOption and (type(checkcaller) ~= "function" or not checkcaller()) then
                     local args = table.pack(...)
                     pcall(function()
                         if type(args[1]) == "string" then

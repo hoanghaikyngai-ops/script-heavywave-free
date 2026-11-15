@@ -2,7 +2,7 @@ local ProtectionConfig = {
     HubName = "HOANGHAI"
 }
 -------------------------------------------------------------------------------
--- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇đã sửa
+-- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇 1
 -------------------------------------------------------------------------------
 
 print(ProtectionConfig.HubName .. " Loaded Successfully!")
